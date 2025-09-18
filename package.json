@@ -11,7 +11,8 @@
     "test": "vitest",
     "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "postinstall": "electron-rebuild --force --arch=arm64 --version=38.1.2 -w better-sqlite3"
   },
   "dependencies": {
     "ajv": "^8.12.0",
@@ -23,6 +24,7 @@
     "yaml": "^2.3.4"
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
     "@playwright/test": "^1.49.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^24.5.2",

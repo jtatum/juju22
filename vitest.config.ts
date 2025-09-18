@@ -21,6 +21,7 @@ export default defineConfig({
       '@shared': path.resolve(__dirname, 'src/shared'),
       '@plugins': path.resolve(__dirname, 'src/plugins'),
       electron: path.resolve(__dirname, 'tests/mocks/electron.ts'),
+      'better-sqlite3': path.resolve(__dirname, 'tests/mocks/better-sqlite3.ts'),
       'electron-store': path.resolve(__dirname, 'tests/mocks/electron-store.ts'),
     },
   },

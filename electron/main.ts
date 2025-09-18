@@ -1,6 +1,6 @@
 import * as electron from 'electron'
 import { mkdirSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 import { EventBus } from '../src/main/core/event-bus'
@@ -16,7 +16,8 @@ import { createLogger } from '../src/main/core/logger'
 import type { Logger } from '../src/main/core/logger'
 
 const require = createRequire(import.meta.url)
-const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 const { app, BrowserWindow, Menu } = electron
 
 process.env.APP_ROOT = process.env.APP_ROOT ?? join(__dirname, '..')
@@ -37,6 +38,14 @@ const logError = (message: string, error: unknown) => {
     console.error(message, error)
   }
 }
+
+process.on('unhandledRejection', (reason) => {
+  logError('Unhandled promise rejection', reason)
+})
+
+process.on('uncaughtException', (error) => {
+  logError('Uncaught exception', error)
+})
 
 function ensureDirectory(path: string) {
   if (!existsSync(path)) {
@@ -153,7 +162,10 @@ async function bootstrap() {
   }
 }
 
-bootstrap()
+bootstrap().catch((error) => {
+  logError('Unhandled error during bootstrap', error)
+  app.exit(1)
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

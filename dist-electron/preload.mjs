@@ -1,1 +1,40 @@
-"use strict";const c=require("electron");function l(e){const t=Object.create(null,{[Symbol.toStringTag]:{value:"Module"}});if(e){for(const n in e)if(n!=="default"){const r=Object.getOwnPropertyDescriptor(e,n);Object.defineProperty(t,n,r.get?r:{enumerable:!0,get:()=>e[n]})}}return t.default=e,Object.freeze(t)}const s=l(c),o={list:"plugins:list",get:"plugins:get",execute:"plugins:execute-action"},{contextBridge:g,ipcRenderer:i}=s,u={plugins:{list:()=>i.invoke(o.list),get:e=>i.invoke(o.get,e),executeAction:(e,t,n)=>i.invoke(o.execute,{pluginId:e,actionId:t,params:n})},events:{onPluginTrigger:e=>{const t=(n,r)=>e(r);return i.on("events:plugin-trigger",t),()=>i.off("events:plugin-trigger",t)}}};g.exposeInMainWorld("aidle",u);
+"use strict";
+const electron = require("electron");
+function _interopNamespaceDefault(e) {
+  const n = Object.create(null, { [Symbol.toStringTag]: { value: "Module" } });
+  if (e) {
+    for (const k in e) {
+      if (k !== "default") {
+        const d = Object.getOwnPropertyDescriptor(e, k);
+        Object.defineProperty(n, k, d.get ? d : {
+          enumerable: true,
+          get: () => e[k]
+        });
+      }
+    }
+  }
+  n.default = e;
+  return Object.freeze(n);
+}
+const electron__namespace = /* @__PURE__ */ _interopNamespaceDefault(electron);
+const pluginChannels = {
+  list: "plugins:list",
+  get: "plugins:get",
+  execute: "plugins:execute-action"
+};
+const { contextBridge, ipcRenderer } = electron__namespace;
+const aidleBridge = {
+  plugins: {
+    list: () => ipcRenderer.invoke(pluginChannels.list),
+    get: (pluginId) => ipcRenderer.invoke(pluginChannels.get, pluginId),
+    executeAction: (pluginId, actionId, params) => ipcRenderer.invoke(pluginChannels.execute, { pluginId, actionId, params })
+  },
+  events: {
+    onPluginTrigger: (handler) => {
+      const listener = (_event, payload) => handler(payload);
+      ipcRenderer.on("events:plugin-trigger", listener);
+      return () => ipcRenderer.off("events:plugin-trigger", listener);
+    }
+  }
+};
+contextBridge.exposeInMainWorld("aidle", aidleBridge);

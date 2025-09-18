@@ -6,6 +6,8 @@ import { join } from 'node:path'
 
 const { app } = electron
 
+type DatabaseInstance = InstanceType<typeof Database>
+
 const SETTINGS_SCHEMA = {
   theme: {
     type: 'string',
@@ -45,7 +47,7 @@ export interface RuleRecord {
 }
 
 export class RuleRepository {
-  private readonly db: Database.Database
+  private readonly db: DatabaseInstance
 
   private static readonly mapRow = (row: Omit<RuleRecord, 'definition'> & { definition: string }): RuleRecord => ({
     ...row,
