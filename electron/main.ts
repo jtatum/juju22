@@ -10,8 +10,11 @@ import {
   resolveBuiltInPluginDirectory,
   resolveExternalPluginDirectory,
 } from '../src/main/core/plugin-manager'
+import { RuleEngine } from '../src/main/core/rule-engine'
+import { ensureDemoRules } from '../src/main/core/rule-seeder'
 import { registerPluginBridge } from '../src/main/ipc/plugin-bridge'
 import { registerEventBridge } from '../src/main/ipc/event-bridge'
+import { registerRuleBridge } from '../src/main/ipc/rule-bridge'
 import { createLogger } from '../src/main/core/logger'
 import type { Logger } from '../src/main/core/logger'
 
@@ -29,6 +32,7 @@ const eventBus = new EventBus()
 let pluginManager: PluginManager | null = null
 let stores: DataStores | null = null
 let logger: Logger | null = null
+let ruleEngine: RuleEngine | null = null
 let isShuttingDown = false
 
 const logError = (message: string, error: unknown) => {
@@ -156,6 +160,10 @@ async function bootstrap() {
 
   try {
     await pluginManager.loadPlugins()
+    ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager)
+    ruleEngine.start()
+    ensureDemoRules(ruleEngine)
+    registerRuleBridge(ruleEngine)
   } catch (error) {
     logError('Failed to load plugins', error)
     window.webContents.send('main-process-error', 'Failed to load plugins. See logs for details.')
@@ -186,6 +194,7 @@ app.on('before-quit', async (event) => {
     event.preventDefault()
     isShuttingDown = true
     try {
+      ruleEngine?.stop()
       await pluginManager.unloadAll()
     } catch (error) {
       logError('Error while shutting down plugins', error)

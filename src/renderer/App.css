@@ -83,6 +83,13 @@ section h2 {
   gap: 0.5rem;
 }
 
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
 .plugin-list li h3 {
   margin: 0;
   font-size: 1.1rem;

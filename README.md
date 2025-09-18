@@ -10,6 +10,12 @@ Aidle is a cross-platform automation and integration platform for content creato
 - Built-in System plugin showcasing timer triggers and notifications
 - Vitest-based test harness with initial unit/integration coverage and Playwright skeleton for E2E
 
+## Phase 2 Highlights
+
+- SQLite-backed rule engine with IPC bridge for managing automation definitions
+- Expanded EventBus featuring structured logging, renderer dashboards, and rule evaluation telemetry
+- Mock OBS and Twitch plugin scaffolds demonstrating the Phase 2 integration surface
+
 ## Getting Started
 
 ```bash
@@ -52,4 +58,4 @@ aidle/
 - Events emitted by plugins flow through a typed EventBus to the renderer via IPC, enabling live monitoring.
 - Settings and rule data are stored under the user’s Electron `appData` directory inside the `data/` subfolder.
 
-Refer to `docs/phase-1.md` for a detailed overview of the Phase 1 architecture and testing strategy.
+Refer to `docs/phase-1.md` for the Phase 1 foundation and `docs/phase-2.md` for the latest automation features.

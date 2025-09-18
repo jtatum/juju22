@@ -1,6 +1,6 @@
 import * as electron from "electron";
 import electron__default from "electron";
-import fs, { existsSync, mkdirSync, createWriteStream, readdirSync } from "node:fs";
+import fs, { createWriteStream, existsSync, mkdirSync, readdirSync } from "node:fs";
 import path, { join, dirname, extname, basename } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
@@ -15,14 +15,118 @@ import { readFile } from "node:fs/promises";
 import require$$0$1 from "process";
 import require$$0$2 from "buffer";
 import vm from "node:vm";
+const { app: app$3 } = electron;
+const levelOrder = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40
+};
+class Logger {
+  name;
+  level;
+  stream = null;
+  constructor(name, level = process.env.AIDLE_LOG_LEVEL ?? "info") {
+    this.name = name;
+    this.level = level;
+  }
+  debug(message, meta) {
+    this.write("debug", message, meta);
+  }
+  info(message, meta) {
+    this.write("info", message, meta);
+  }
+  warn(message, meta) {
+    this.write("warn", message, meta);
+  }
+  error(message, meta) {
+    this.write("error", message, meta);
+  }
+  write(level, message, meta) {
+    if (levelOrder[level] < levelOrder[this.level]) return;
+    const timestamp2 = (/* @__PURE__ */ new Date()).toISOString();
+    const formatted = `${timestamp2} [${level.toUpperCase()}] [${this.name}] ${message}`;
+    const stream = this.ensureStream();
+    if (stream) {
+      if (meta) {
+        stream.write(`${formatted} ${JSON.stringify(meta)}
+`);
+      } else {
+        stream.write(`${formatted}
+`);
+      }
+    }
+    if (process.env.NODE_ENV !== "production") {
+      console[level === "debug" ? "log" : level](formatted, meta ?? "");
+    }
+  }
+  ensureStream() {
+    if (this.stream) return this.stream;
+    const file = this.resolveLogFile();
+    try {
+      this.stream = createWriteStream(file, { flags: "a" });
+    } catch (error) {
+      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
+        const dir = join(app$3.getPath("userData"), "logs");
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+        this.stream = createWriteStream(file, { flags: "a" });
+      } else {
+        this.stream = null;
+      }
+    }
+    return this.stream;
+  }
+  resolveLogFile() {
+    const dir = join(app$3.getPath("userData"), "logs");
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    return join(dir, "aidle.log");
+  }
+}
+const createLogger = (name) => new Logger(name);
+const DEFAULT_MAX_LOG_ENTRIES = 200;
 class EventBus {
   emitter = new EventEmitter();
+  logger;
+  maxLogEntries;
+  logBuffer = [];
+  constructor(options) {
+    this.logger = options?.logger ?? createLogger("EventBus");
+    this.maxLogEntries = options?.maxLogEntries ?? DEFAULT_MAX_LOG_ENTRIES;
+  }
   emit(event) {
+    this.logger.debug("Event emitted", { type: event.type, payload: event.payload });
     this.emitter.emit(event.type, event.payload);
+    const entry = {
+      type: event.type,
+      payload: event.payload,
+      timestamp: Date.now()
+    };
+    this.emitter.emit("log", entry);
+    this.logBuffer.unshift(entry);
+    if (this.logBuffer.length > this.maxLogEntries) {
+      this.logBuffer.length = this.maxLogEntries;
+    }
+  }
+  emitPluginTrigger(payload) {
+    this.emit({ type: "plugin.trigger", payload });
+  }
+  on(type2, handler) {
+    this.emitter.on(type2, handler);
+    return () => this.emitter.off(type2, handler);
   }
   onPluginTrigger(handler) {
-    this.emitter.on("plugin-trigger", handler);
-    return () => this.emitter.off("plugin-trigger", handler);
+    return this.on("plugin.trigger", handler);
+  }
+  onLog(handler) {
+    this.emitter.on("log", handler);
+    return () => this.emitter.off("log", handler);
+  }
+  getRecentLogEntries(limit2 = this.maxLogEntries) {
+    return this.logBuffer.slice(0, limit2);
   }
 }
 const isObject = (value) => {
@@ -10384,15 +10488,15 @@ class Conf {
     this.store = store;
   }
 }
-const { app: app$3, ipcMain, shell } = electron__default;
+const { app: app$2, ipcMain, shell } = electron__default;
 let isInitialized = false;
 const initDataListener = () => {
-  if (!ipcMain || !app$3) {
+  if (!ipcMain || !app$2) {
     throw new Error("Electron Store: You need to call `.initRenderer()` from the main process.");
   }
   const appData = {
-    defaultCwd: app$3.getPath("userData"),
-    appVersion: app$3.getVersion()
+    defaultCwd: app$2.getPath("userData"),
+    appVersion: app$2.getVersion()
   };
   if (isInitialized) {
     return appData;
@@ -10413,7 +10517,7 @@ class ElectronStore extends Conf {
         throw new Error("Electron Store: You need to call `.initRenderer()` from the main process.");
       }
       ({ defaultCwd, appVersion } = appData);
-    } else if (ipcMain && app$3) {
+    } else if (ipcMain && app$2) {
       ({ defaultCwd, appVersion } = initDataListener());
     }
     options = {
@@ -10440,7 +10544,7 @@ class ElectronStore extends Conf {
     }
   }
 }
-const { app: app$2 } = electron;
+const { app: app$1 } = electron;
 const SETTINGS_SCHEMA = {
   theme: {
     type: "string",
@@ -10464,10 +10568,6 @@ class SettingsStore extends ElectronStore {
 }
 class RuleRepository {
   db;
-  static mapRow = (row) => ({
-    ...row,
-    definition: JSON.parse(row.definition)
-  });
   constructor() {
     const dbPath = join(getDataDirectory(), "rules.db");
     this.db = new Database(dbPath);
@@ -10475,41 +10575,117 @@ class RuleRepository {
   }
   initialize() {
     this.db.prepare(`
-        CREATE TABLE IF NOT EXISTS rules (
+        CREATE TABLE IF NOT EXISTS rule_definitions (
           id TEXT PRIMARY KEY,
-          definition TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          trigger_plugin_id TEXT NOT NULL,
+          trigger_id TEXT NOT NULL,
+          conditions TEXT,
+          actions TEXT NOT NULL,
           enabled INTEGER NOT NULL DEFAULT 1,
+          priority INTEGER NOT NULL DEFAULT 0,
+          tags TEXT,
+          created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
       `).run();
   }
-  upsertRule(id2, definition, enabled = true) {
+  save(rule) {
+    const existing = this.getRule(rule.id);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const createdAt = existing?.createdAt ?? rule.createdAt ?? now;
+    const updatedAt = now;
     const stmt = this.db.prepare(`
-      INSERT INTO rules (id, definition, enabled, updated_at)
-      VALUES (@id, @definition, @enabled, @updated_at)
+      INSERT INTO rule_definitions (
+        id,
+        name,
+        description,
+        trigger_plugin_id,
+        trigger_id,
+        conditions,
+        actions,
+        enabled,
+        priority,
+        tags,
+        created_at,
+        updated_at
+      ) VALUES (
+        @id,
+        @name,
+        @description,
+        @trigger_plugin_id,
+        @trigger_id,
+        @conditions,
+        @actions,
+        @enabled,
+        @priority,
+        @tags,
+        @created_at,
+        @updated_at
+      )
       ON CONFLICT(id) DO UPDATE SET
-        definition = excluded.definition,
+        name = excluded.name,
+        description = excluded.description,
+        trigger_plugin_id = excluded.trigger_plugin_id,
+        trigger_id = excluded.trigger_id,
+        conditions = excluded.conditions,
+        actions = excluded.actions,
         enabled = excluded.enabled,
+        priority = excluded.priority,
+        tags = excluded.tags,
         updated_at = excluded.updated_at;
     `);
     stmt.run({
-      id: id2,
-      definition: JSON.stringify(definition),
-      enabled: enabled ? 1 : 0,
-      updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      ...rule,
+      trigger_plugin_id: rule.trigger.pluginId,
+      trigger_id: rule.trigger.triggerId,
+      conditions: rule.conditions ? JSON.stringify(rule.conditions) : null,
+      actions: JSON.stringify(rule.actions),
+      enabled: rule.enabled ? 1 : 0,
+      priority: rule.priority,
+      tags: rule.tags ? JSON.stringify(rule.tags) : null,
+      created_at: createdAt,
+      updated_at: updatedAt
     });
   }
   deleteRule(id2) {
-    this.db.prepare("DELETE FROM rules WHERE id = ?").run(id2);
+    this.db.prepare("DELETE FROM rule_definitions WHERE id = ?").run(id2);
   }
   getRule(id2) {
-    const result = this.db.prepare("SELECT * FROM rules WHERE id = ?").get(id2);
+    const result = this.db.prepare("SELECT * FROM rule_definitions WHERE id = ?").get(id2);
     if (!result) return void 0;
-    return RuleRepository.mapRow(result);
+    return this.mapRow(result);
   }
   listRules() {
-    const results = this.db.prepare("SELECT * FROM rules ORDER BY updated_at DESC").all();
-    return results.map(RuleRepository.mapRow);
+    const results = this.db.prepare("SELECT * FROM rule_definitions ORDER BY priority DESC, updated_at DESC").all();
+    return results.map((row) => this.mapRow(row));
+  }
+  listByTrigger(trigger) {
+    const results = this.db.prepare(
+      `SELECT * FROM rule_definitions
+         WHERE trigger_plugin_id = @pluginId AND trigger_id = @triggerId AND enabled = 1
+         ORDER BY priority DESC, updated_at DESC`
+    ).all({ pluginId: trigger.pluginId, triggerId: trigger.triggerId });
+    return results.map((row) => this.mapRow(row));
+  }
+  mapRow(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description ?? void 0,
+      trigger: {
+        pluginId: row.trigger_plugin_id,
+        triggerId: row.trigger_id
+      },
+      conditions: row.conditions ? JSON.parse(row.conditions) : void 0,
+      actions: JSON.parse(row.actions),
+      enabled: row.enabled === 1,
+      priority: row.priority,
+      tags: row.tags ? JSON.parse(row.tags) : void 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
   }
 }
 class DataStores {
@@ -10517,7 +10693,7 @@ class DataStores {
   rules = new RuleRepository();
 }
 const getDataDirectory = () => {
-  const dir = join(app$2.getPath("userData"), "data");
+  const dir = join(app$1.getPath("userData"), "data");
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
@@ -17816,78 +17992,6 @@ function requireDist() {
 }
 var distExports = requireDist();
 const YAML = /* @__PURE__ */ getDefaultExportFromCjs(distExports);
-const { app: app$1 } = electron;
-const levelOrder = {
-  debug: 10,
-  info: 20,
-  warn: 30,
-  error: 40
-};
-class Logger {
-  name;
-  level;
-  stream = null;
-  constructor(name, level = process.env.AIDLE_LOG_LEVEL ?? "info") {
-    this.name = name;
-    this.level = level;
-  }
-  debug(message, meta) {
-    this.write("debug", message, meta);
-  }
-  info(message, meta) {
-    this.write("info", message, meta);
-  }
-  warn(message, meta) {
-    this.write("warn", message, meta);
-  }
-  error(message, meta) {
-    this.write("error", message, meta);
-  }
-  write(level, message, meta) {
-    if (levelOrder[level] < levelOrder[this.level]) return;
-    const timestamp2 = (/* @__PURE__ */ new Date()).toISOString();
-    const formatted = `${timestamp2} [${level.toUpperCase()}] [${this.name}] ${message}`;
-    const stream = this.ensureStream();
-    if (stream) {
-      if (meta) {
-        stream.write(`${formatted} ${JSON.stringify(meta)}
-`);
-      } else {
-        stream.write(`${formatted}
-`);
-      }
-    }
-    if (process.env.NODE_ENV !== "production") {
-      console[level === "debug" ? "log" : level](formatted, meta ?? "");
-    }
-  }
-  ensureStream() {
-    if (this.stream) return this.stream;
-    const file = this.resolveLogFile();
-    try {
-      this.stream = createWriteStream(file, { flags: "a" });
-    } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT") {
-        const dir = join(app$1.getPath("userData"), "logs");
-        if (!existsSync(dir)) {
-          mkdirSync(dir, { recursive: true });
-        }
-        this.stream = createWriteStream(file, { flags: "a" });
-      } else {
-        this.stream = null;
-      }
-    }
-    return this.stream;
-  }
-  resolveLogFile() {
-    const dir = join(app$1.getPath("userData"), "logs");
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    return join(dir, "aidle.log");
-  }
-}
-const createLogger = (name) => new Logger(name);
 const allowedModules = /* @__PURE__ */ new Set([
   "events",
   "path",
@@ -18149,14 +18253,11 @@ class PluginManager {
     this.validatePluginModule(module, manifest);
     const runtimeLogger = createLogger(`plugin:${manifest.id}`);
     const captureEmit = (triggerId, data) => {
-      this.eventBus.emit({
-        type: "plugin-trigger",
-        payload: {
-          pluginId: manifest.id,
-          triggerId,
-          data,
-          timestamp: Date.now()
-        }
+      this.eventBus.emitPluginTrigger({
+        pluginId: manifest.id,
+        triggerId,
+        data,
+        timestamp: Date.now()
       });
     };
     const context = {
@@ -18197,6 +18298,248 @@ class PluginManager {
 }
 const resolveBuiltInPluginDirectory = () => join(process.env.APP_ROOT ?? process.cwd(), "src", "plugins");
 const resolveExternalPluginDirectory = () => join(process.cwd(), "plugins-external");
+class RuleEngine {
+  eventBus;
+  repository;
+  pluginManager;
+  logger;
+  unsubscribe = null;
+  constructor(eventBus2, repository, pluginManager2, options) {
+    this.eventBus = eventBus2;
+    this.repository = repository;
+    this.pluginManager = pluginManager2;
+    this.logger = options?.logger ?? createLogger("RuleEngine");
+  }
+  start() {
+    if (this.unsubscribe) return;
+    this.logger.info("Rule engine started");
+    this.unsubscribe = this.eventBus.onPluginTrigger((payload) => {
+      void this.handleTrigger(payload);
+    });
+  }
+  stop() {
+    if (!this.unsubscribe) return;
+    this.logger.info("Rule engine stopped");
+    this.unsubscribe();
+    this.unsubscribe = null;
+  }
+  listRules() {
+    return this.repository.listRules();
+  }
+  getRule(id2) {
+    return this.repository.getRule(id2);
+  }
+  saveRule(rule) {
+    const timestamps = ensureTimestamps(rule);
+    this.repository.save(timestamps);
+    return timestamps;
+  }
+  deleteRule(id2) {
+    this.repository.deleteRule(id2);
+  }
+  async handleTrigger(payload) {
+    const rules2 = this.repository.listByTrigger({ pluginId: payload.pluginId, triggerId: payload.triggerId });
+    if (rules2.length === 0) {
+      return;
+    }
+    const context = {
+      trigger: { pluginId: payload.pluginId, triggerId: payload.triggerId },
+      eventTimestamp: payload.timestamp
+    };
+    const matchedSummaries = [];
+    for (const rule of rules2) {
+      try {
+        const evaluation = evaluateRule(rule, payload.data);
+        matchedSummaries.push({ ruleId: rule.id, matched: evaluation.matched, reason: evaluation.reason });
+        this.eventBus.emit({
+          type: "rule.evaluation",
+          payload: {
+            ruleId: rule.id,
+            context,
+            result: evaluation
+          }
+        });
+        if (!evaluation.matched) {
+          continue;
+        }
+        await this.dispatchActions(rule, payload);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error while processing rule ${rule.id}`, { error });
+        const ruleError = {
+          ruleId: rule.id,
+          error: message,
+          details: error instanceof Error ? { stack: error.stack } : void 0,
+          occurredAt: Date.now()
+        };
+        this.eventBus.emit({ type: "rule.error", payload: ruleError });
+      }
+    }
+    if (matchedSummaries.length > 0) {
+      payload.matchedRules = matchedSummaries;
+    }
+  }
+  async dispatchActions(rule, payload) {
+    for (const action of rule.actions) {
+      const dispatchEvent = {
+        ruleId: rule.id,
+        action,
+        dispatchedAt: Date.now()
+      };
+      try {
+        await this.pluginManager.executeAction(action.pluginId, action.actionId, {
+          ...action.params ?? {},
+          __sourceRule: rule.id,
+          __sourceEvent: {
+            pluginId: payload.pluginId,
+            triggerId: payload.triggerId,
+            timestamp: payload.timestamp
+          }
+        });
+        this.eventBus.emit({ type: "rule.action", payload: dispatchEvent });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Failed to dispatch action ${action.actionId} for rule ${rule.id}`, { error });
+        const ruleError = {
+          ruleId: rule.id,
+          error: message,
+          details: {
+            action: dispatchEvent,
+            error: error instanceof Error ? { stack: error.stack } : void 0
+          },
+          occurredAt: Date.now()
+        };
+        this.eventBus.emit({ type: "rule.error", payload: ruleError });
+      }
+    }
+  }
+}
+const ensureTimestamps = (rule) => {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  return {
+    ...rule,
+    createdAt: rule.createdAt ?? now,
+    updatedAt: now
+  };
+};
+const evaluateRule = (rule, data) => {
+  if (!rule.conditions || rule.conditions.length === 0) {
+    return { ruleId: rule.id, matched: true };
+  }
+  for (const condition of rule.conditions) {
+    const satisfied = evaluateCondition(condition, data);
+    if (!satisfied) {
+      return {
+        ruleId: rule.id,
+        matched: false,
+        reason: describeConditionFailure(condition)
+      };
+    }
+  }
+  return { ruleId: rule.id, matched: true };
+};
+const evaluateCondition = (condition, data) => {
+  const value = extractValue(data, condition.path);
+  switch (condition.type) {
+    case "equals":
+      return deepEqual(value, condition.value);
+    case "notEquals":
+      return !deepEqual(value, condition.value);
+    case "includes":
+      if (Array.isArray(value)) {
+        return value.some((entry) => deepEqual(entry, condition.value));
+      }
+      if (typeof value === "string") {
+        return typeof condition.value === "string" ? value.includes(condition.value) : false;
+      }
+      return false;
+    default: {
+      throw new Error(`Unsupported condition type ${condition.type}`);
+    }
+  }
+};
+const describeConditionFailure = (condition) => {
+  switch (condition.type) {
+    case "equals":
+      return `Expected ${condition.path} to equal ${JSON.stringify(condition.value)}`;
+    case "notEquals":
+      return `Expected ${condition.path} to differ from ${JSON.stringify(condition.value)}`;
+    case "includes":
+      return `Expected ${condition.path} to include ${JSON.stringify(condition.value)}`;
+    default: {
+      throw new Error(`Unsupported condition type ${condition.type}`);
+    }
+  }
+};
+const extractValue = (data, path2) => {
+  if (!path2) return void 0;
+  if (data == null) return void 0;
+  const segments = path2.split(".");
+  let current = data;
+  for (const segment of segments) {
+    if (typeof current !== "object" || current === null) {
+      return void 0;
+    }
+    if (Array.isArray(current)) {
+      const index = Number(segment);
+      if (Number.isNaN(index)) {
+        return void 0;
+      }
+      current = current[index];
+    } else {
+      current = current[segment];
+    }
+  }
+  return current;
+};
+const deepEqual = (a, b) => {
+  if (a === b) return true;
+  if (typeof a !== typeof b) return false;
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) return false;
+    return a.every((value, index) => deepEqual(value, b[index]));
+  }
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    return keysA.every((key) => deepEqual(a[key], b[key]));
+  }
+  return false;
+};
+const DEMO_RULE_ID = "demo.timer-notification";
+const ensureDemoRules = (ruleEngine2) => {
+  const existing = ruleEngine2.getRule(DEMO_RULE_ID);
+  if (existing) return existing;
+  return ruleEngine2.saveRule({
+    id: DEMO_RULE_ID,
+    name: "Demo: Timer Completed Notification",
+    description: "Sends a notification through the System plugin whenever the demo timer finishes.",
+    trigger: {
+      pluginId: "system",
+      triggerId: "timer.completed"
+    },
+    conditions: [
+      {
+        type: "includes",
+        path: "timerId",
+        value: "demo"
+      }
+    ],
+    actions: [
+      {
+        pluginId: "system",
+        actionId: "notification.send",
+        params: {
+          title: "Demo Timer",
+          message: "The demo timer has completed."
+        }
+      }
+    ],
+    enabled: true,
+    priority: 0
+  });
+};
 const registerPluginBridge = (pluginManager2) => {
   const { ipcMain: ipcMain2 } = electron;
   ipcMain2.handle("plugins:list", () => {
@@ -18230,8 +18573,34 @@ const registerEventBridge = (window, eventBus2) => {
       window.webContents.send("events:plugin-trigger", payload);
     }
   });
+  const unsubscribeLog = eventBus2.onLog((entry) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send("events:log-entry", entry);
+    }
+  });
+  const sendInitialLog = () => {
+    if (!window.isDestroyed()) {
+      window.webContents.send("events:log-bootstrap", eventBus2.getRecentLogEntries(50));
+    }
+  };
+  if (window.webContents.isLoading()) {
+    window.webContents.once("did-finish-load", sendInitialLog);
+  } else {
+    sendInitialLog();
+  }
   window.on("closed", () => {
     unsubscribe();
+    unsubscribeLog();
+  });
+};
+const registerRuleBridge = (ruleEngine2) => {
+  const { ipcMain: ipcMain2 } = electron;
+  ipcMain2.handle("rules:list", () => ruleEngine2.listRules());
+  ipcMain2.handle("rules:get", (_event, ruleId) => ruleEngine2.getRule(ruleId) ?? null);
+  ipcMain2.handle("rules:save", (_event, rule) => ruleEngine2.saveRule(rule));
+  ipcMain2.handle("rules:delete", (_event, ruleId) => {
+    ruleEngine2.deleteRule(ruleId);
+    return { status: "ok" };
   });
 };
 const require2 = createRequire(import.meta.url);
@@ -18244,6 +18613,7 @@ const eventBus = new EventBus();
 let pluginManager = null;
 let stores = null;
 let logger = null;
+let ruleEngine = null;
 let isShuttingDown = false;
 const logError = (message, error) => {
   if (logger) {
@@ -18355,6 +18725,10 @@ async function bootstrap() {
   const window = await createMainWindow();
   try {
     await pluginManager.loadPlugins();
+    ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager);
+    ruleEngine.start();
+    ensureDemoRules(ruleEngine);
+    registerRuleBridge(ruleEngine);
   } catch (error) {
     logError("Failed to load plugins", error);
     window.webContents.send("main-process-error", "Failed to load plugins. See logs for details.");
@@ -18381,6 +18755,7 @@ app.on("before-quit", async (event) => {
     event.preventDefault();
     isShuttingDown = true;
     try {
+      ruleEngine?.stop();
       await pluginManager.unloadAll();
     } catch (error) {
       logError("Error while shutting down plugins", error);

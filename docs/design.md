@@ -62,11 +62,13 @@ Create the most extensible and user-friendly automation platform for content cre
 - **Triggers**: Scene changes, stream start/stop, recording events
 - **Actions**: Scene switching, source visibility, filter controls, recording management
 - **Connection**: WebSocket with auto-reconnect
+- **Phase 2 status**: Ships with a mock runtime that simulates scene changes and stream state while the real WebSocket client is under development.
 
 #### Twitch Plugin
 - **Triggers**: Chat commands, follows, subscriptions, raids, channel point redemptions
 - **Actions**: Send messages, create clips, update stream info, manage VIPs/mods
 - **Authentication**: OAuth 2.0 flow with token refresh
+- **Phase 2 status**: Provides a mock EventSub loop that emits chat messages and supports chat/shoutout actions for automation testing.
 
 ### User Interface
 - **Dashboard**: Live event feed, system status, quick stats

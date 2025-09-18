@@ -1,0 +1,42 @@
+{
+  "id": "obs",
+  "name": "OBS Studio",
+  "version": "0.1.0",
+  "author": "Aidle",
+  "description": "Streams scene and streaming state changes from OBS Studio and exposes high-level control actions.",
+  "main": "index.js",
+  "triggers": [
+    {
+      "id": "scene.changed",
+      "name": "Scene Changed",
+      "description": "Fires when the active scene updates."
+    },
+    {
+      "id": "stream.started",
+      "name": "Stream Started",
+      "description": "Fires when broadcasting begins."
+    },
+    {
+      "id": "stream.stopped",
+      "name": "Stream Stopped",
+      "description": "Fires when broadcasting stops."
+    }
+  ],
+  "actions": [
+    {
+      "id": "scene.switch",
+      "name": "Switch Scene",
+      "description": "Switch to a scene by name."
+    },
+    {
+      "id": "stream.start",
+      "name": "Start Stream",
+      "description": "Begin streaming in OBS."
+    },
+    {
+      "id": "stream.stop",
+      "name": "Stop Stream",
+      "description": "Stop streaming in OBS."
+    }
+  ]
+}

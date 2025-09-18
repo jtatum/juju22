@@ -3,6 +3,22 @@ import Store from 'electron-store'
 import * as electron from 'electron'
 import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import type { RuleDefinition } from '../../shared/rules/types'
+
+type RuleRow = {
+  id: string
+  name: string
+  description?: string | null
+  trigger_plugin_id: string
+  trigger_id: string
+  conditions: string | null
+  actions: string
+  enabled: number
+  priority: number
+  tags: string | null
+  created_at: string
+  updated_at: string
+}
 
 const { app } = electron
 
@@ -39,20 +55,8 @@ export class SettingsStore extends Store<SettingsSchema> {
   }
 }
 
-export interface RuleRecord {
-  id: string
-  definition: unknown
-  enabled: number
-  updated_at: string
-}
-
 export class RuleRepository {
   private readonly db: DatabaseInstance
-
-  private static readonly mapRow = (row: Omit<RuleRecord, 'definition'> & { definition: string }): RuleRecord => ({
-    ...row,
-    definition: JSON.parse(row.definition),
-  })
 
   constructor() {
     const dbPath = join(getDataDirectory(), 'rules.db')
@@ -63,50 +67,131 @@ export class RuleRepository {
   private initialize() {
     this.db
       .prepare(`
-        CREATE TABLE IF NOT EXISTS rules (
+        CREATE TABLE IF NOT EXISTS rule_definitions (
           id TEXT PRIMARY KEY,
-          definition TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          trigger_plugin_id TEXT NOT NULL,
+          trigger_id TEXT NOT NULL,
+          conditions TEXT,
+          actions TEXT NOT NULL,
           enabled INTEGER NOT NULL DEFAULT 1,
+          priority INTEGER NOT NULL DEFAULT 0,
+          tags TEXT,
+          created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
       `)
       .run()
   }
 
-  upsertRule(id: string, definition: unknown, enabled = true) {
+  save(rule: RuleDefinition) {
+    const existing = this.getRule(rule.id)
+    const now = new Date().toISOString()
+    const createdAt = existing?.createdAt ?? rule.createdAt ?? now
+    const updatedAt = now
     const stmt = this.db.prepare(`
-      INSERT INTO rules (id, definition, enabled, updated_at)
-      VALUES (@id, @definition, @enabled, @updated_at)
+      INSERT INTO rule_definitions (
+        id,
+        name,
+        description,
+        trigger_plugin_id,
+        trigger_id,
+        conditions,
+        actions,
+        enabled,
+        priority,
+        tags,
+        created_at,
+        updated_at
+      ) VALUES (
+        @id,
+        @name,
+        @description,
+        @trigger_plugin_id,
+        @trigger_id,
+        @conditions,
+        @actions,
+        @enabled,
+        @priority,
+        @tags,
+        @created_at,
+        @updated_at
+      )
       ON CONFLICT(id) DO UPDATE SET
-        definition = excluded.definition,
+        name = excluded.name,
+        description = excluded.description,
+        trigger_plugin_id = excluded.trigger_plugin_id,
+        trigger_id = excluded.trigger_id,
+        conditions = excluded.conditions,
+        actions = excluded.actions,
         enabled = excluded.enabled,
+        priority = excluded.priority,
+        tags = excluded.tags,
         updated_at = excluded.updated_at;
     `)
+
     stmt.run({
-      id,
-      definition: JSON.stringify(definition),
-      enabled: enabled ? 1 : 0,
-      updated_at: new Date().toISOString(),
+      ...rule,
+      trigger_plugin_id: rule.trigger.pluginId,
+      trigger_id: rule.trigger.triggerId,
+      conditions: rule.conditions ? JSON.stringify(rule.conditions) : null,
+      actions: JSON.stringify(rule.actions),
+      enabled: rule.enabled ? 1 : 0,
+      priority: rule.priority,
+      tags: rule.tags ? JSON.stringify(rule.tags) : null,
+      created_at: createdAt,
+      updated_at: updatedAt,
     })
   }
 
   deleteRule(id: string) {
-    this.db.prepare('DELETE FROM rules WHERE id = ?').run(id)
+    this.db.prepare('DELETE FROM rule_definitions WHERE id = ?').run(id)
   }
 
-  getRule(id: string): RuleRecord | undefined {
+  getRule(id: string): RuleDefinition | undefined {
     const result = this.db
-      .prepare('SELECT * FROM rules WHERE id = ?')
-      .get(id) as (Omit<RuleRecord, 'definition'> & { definition: string }) | undefined
+      .prepare('SELECT * FROM rule_definitions WHERE id = ?')
+      .get(id) as RuleRow | undefined
     if (!result) return undefined
-    return RuleRepository.mapRow(result)
+    return this.mapRow(result)
   }
 
-  listRules(): RuleRecord[] {
+  listRules(): RuleDefinition[] {
     const results = this.db
-      .prepare('SELECT * FROM rules ORDER BY updated_at DESC')
-      .all() as Array<Omit<RuleRecord, 'definition'> & { definition: string }>
-    return results.map(RuleRepository.mapRow)
+      .prepare('SELECT * FROM rule_definitions ORDER BY priority DESC, updated_at DESC')
+      .all() as RuleRow[]
+    return results.map((row) => this.mapRow(row))
+  }
+
+  listByTrigger(trigger: { pluginId: string; triggerId: string }): RuleDefinition[] {
+    const results = this.db
+      .prepare(
+        `SELECT * FROM rule_definitions
+         WHERE trigger_plugin_id = @pluginId AND trigger_id = @triggerId AND enabled = 1
+         ORDER BY priority DESC, updated_at DESC`,
+      )
+      .all({ pluginId: trigger.pluginId, triggerId: trigger.triggerId }) as RuleRow[]
+    return results.map((row) => this.mapRow(row))
+  }
+
+  private mapRow(row: RuleRow): RuleDefinition {
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description ?? undefined,
+      trigger: {
+        pluginId: row.trigger_plugin_id,
+        triggerId: row.trigger_id,
+      },
+      conditions: row.conditions ? (JSON.parse(row.conditions) as RuleDefinition['conditions']) : undefined,
+      actions: JSON.parse(row.actions) as RuleDefinition['actions'],
+      enabled: row.enabled === 1,
+      priority: row.priority,
+      tags: row.tags ? (JSON.parse(row.tags) as string[]) : undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }
   }
 }
 

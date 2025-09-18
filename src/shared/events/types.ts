@@ -1,0 +1,31 @@
+import type { PluginEventPayload } from '../plugins/types'
+import type {
+  RuleActionDispatchEvent,
+  RuleEvaluationContext,
+  RuleEvaluationResult,
+} from '../rules/types'
+
+export interface RuleEvaluationEvent {
+  ruleId: string
+  context: RuleEvaluationContext
+  result: RuleEvaluationResult
+}
+
+export interface RuleErrorEvent {
+  ruleId?: string
+  error: string
+  details?: unknown
+  occurredAt: number
+}
+
+export type AidleEvent =
+  | { type: 'plugin.trigger'; payload: PluginEventPayload }
+  | { type: 'rule.evaluation'; payload: RuleEvaluationEvent }
+  | { type: 'rule.action'; payload: RuleActionDispatchEvent }
+  | { type: 'rule.error'; payload: RuleErrorEvent }
+
+export interface EventLogEntry {
+  type: AidleEvent['type']
+  payload: AidleEvent['payload']
+  timestamp: number
+}

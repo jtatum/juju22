@@ -156,14 +156,11 @@ export class PluginManager {
 
     const runtimeLogger = createLogger(`plugin:${manifest.id}`)
     const captureEmit = (triggerId: string, data: unknown) => {
-      this.eventBus.emit({
-        type: 'plugin-trigger',
-        payload: {
-          pluginId: manifest.id,
-          triggerId,
-          data,
-          timestamp: Date.now(),
-        },
+      this.eventBus.emitPluginTrigger({
+        pluginId: manifest.id,
+        triggerId,
+        data,
+        timestamp: Date.now(),
       })
     }
 

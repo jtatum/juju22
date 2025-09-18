@@ -45,11 +45,18 @@ export interface PluginContext {
   emitTrigger: (triggerId: string, data: unknown) => void
 }
 
+export interface MatchedRuleSummary {
+  ruleId: string
+  matched: boolean
+  reason?: string
+}
+
 export interface PluginEventPayload {
   pluginId: string
   triggerId: string
   data: unknown
   timestamp: number
+  matchedRules?: MatchedRuleSummary[]
 }
 
 export interface PluginSummary {

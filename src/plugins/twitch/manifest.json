@@ -1,0 +1,37 @@
+{
+  "id": "twitch",
+  "name": "Twitch",
+  "version": "0.1.0",
+  "author": "Aidle",
+  "description": "Streams chat events and channel notifications from Twitch in mock mode.",
+  "main": "index.js",
+  "triggers": [
+    {
+      "id": "chat.message",
+      "name": "Chat Message",
+      "description": "Fires when a chat message is received."
+    },
+    {
+      "id": "channel.follow",
+      "name": "New Follower",
+      "description": "Fires when the channel gains a follower."
+    },
+    {
+      "id": "channel.subscription",
+      "name": "New Subscription",
+      "description": "Fires on a new subscription or resubscription."
+    }
+  ],
+  "actions": [
+    {
+      "id": "chat.send",
+      "name": "Send Chat Message",
+      "description": "Send a message to Twitch chat."
+    },
+    {
+      "id": "channel.shoutout",
+      "name": "Send Shoutout",
+      "description": "Send a shoutout to another channel."
+    }
+  ]
+}

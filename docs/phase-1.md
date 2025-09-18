@@ -85,4 +85,4 @@ _Note:_ Native modules (`better-sqlite3`) require a post-install compilation ste
 - Integrate OBS/Twitch API clients as dedicated plugins leveraging the established sandbox.
 - Flesh out Playwright scenarios once the rule builder UI lands.
 
-Phase 1 lays the groundwork for rapid iteration in subsequent phases while providing confidence through tests and modular architecture.
+Phase 1 lays the groundwork for rapid iteration in subsequent phases while providing confidence through tests and modular architecture. See `docs/phase-2.md` for the automation and integration features layered on top of this foundation.
