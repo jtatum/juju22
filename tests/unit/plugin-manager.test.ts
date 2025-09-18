@@ -2,10 +2,19 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdtempSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { PluginManager } from '@main/core/plugin-manager'
 import { EventBus } from '@main/core/event-bus'
 import { DataStores } from '@main/core/storage'
+import type { Logger } from '@main/core/logger'
+
+const createMockLogger = (): Logger =>
+  ({
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  } as unknown as Logger)
 
 const createTestPlugin = (root: string, manifestOverrides: Record<string, unknown> = {}) => {
   const pluginRoot = join(root, 'demo-plugin')
@@ -54,6 +63,7 @@ describe('PluginManager', () => {
         },
         new EventBus(),
         new DataStores(),
+        createMockLogger(),
       )
 
       await manager.loadPlugins()
@@ -80,6 +90,7 @@ describe('PluginManager', () => {
         },
         new EventBus(),
         new DataStores(),
+        createMockLogger(),
       )
 
       await expect(manager.loadPlugins()).rejects.toThrow(/PluginManager encountered errors/)

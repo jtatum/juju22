@@ -52,6 +52,15 @@ export interface PluginEventPayload {
   timestamp: number
 }
 
+export interface PluginSummary {
+  id: string
+  name: string
+  version: string
+  author: string
+  triggers: TriggerDefinition[]
+  actions: ActionDefinition[]
+}
+
 export interface PluginModule {
   manifest: PluginManifest
   initialize(context: PluginContext): Promise<void> | void

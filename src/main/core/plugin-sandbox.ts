@@ -71,7 +71,6 @@ export class PluginSandbox {
     const code = await readFile(resolvedPath, 'utf-8')
     const script = new vm.Script(code, {
       filename: resolvedPath,
-      displayErrors: true,
     })
 
     const module = { exports: {} as PluginModule }

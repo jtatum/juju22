@@ -7,7 +7,7 @@ import addFormats from 'ajv-formats'
 import YAML from 'yaml'
 import type { EventBus } from './event-bus'
 import type { DataStores } from './storage'
-import { createLogger, Logger } from '@main/core/logger'
+import { createLogger, Logger } from './logger'
 import { PluginSandbox, resolvePluginEntry } from './plugin-sandbox'
 import { pluginManifestSchema } from '../../shared/plugins/manifest-schema'
 import type {

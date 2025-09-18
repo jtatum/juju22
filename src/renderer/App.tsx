@@ -1,25 +1,10 @@
 import { useEffect, useState } from 'react'
+import type { PluginEventPayload, PluginSummary } from '@shared/plugins/types'
 import './App.css'
-
-type PluginSummary = {
-  id: string
-  name: string
-  version: string
-  author: string
-  triggers: Array<{ id: string; name: string }>
-  actions: Array<{ id: string; name: string }>
-}
-
-type PluginEvent = {
-  pluginId: string
-  triggerId: string
-  data: unknown
-  timestamp: number
-}
 
 function App() {
   const [plugins, setPlugins] = useState<PluginSummary[]>([])
-  const [events, setEvents] = useState<PluginEvent[]>([])
+  const [events, setEvents] = useState<PluginEventPayload[]>([])
   const [statusMessage, setStatusMessage] = useState<string>('')
 
   useEffect(() => {
@@ -33,7 +18,7 @@ function App() {
         setStatusMessage(`Failed to load plugins: ${error.message}`)
       })
 
-    const unsubscribe = window.aidle.events.onPluginTrigger((payload: PluginEvent) => {
+    const unsubscribe = window.aidle.events.onPluginTrigger((payload) => {
       setEvents((current) => [payload, ...current].slice(0, 10))
     })
 

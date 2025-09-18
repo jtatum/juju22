@@ -53,7 +53,6 @@ export class Logger {
       }
     }
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console
       console[level === 'debug' ? 'log' : level](formatted, meta ?? '')
     }
   }

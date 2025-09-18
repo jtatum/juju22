@@ -1,4 +1,4 @@
-interface StoreOptions<T extends Record<string, unknown>> {
+interface StoreOptions {
   name: string
   cwd?: string
   fileExtension?: string
@@ -8,7 +8,7 @@ interface StoreOptions<T extends Record<string, unknown>> {
 export default class Store<T extends Record<string, unknown>> {
   private readonly data = new Map<keyof T, T[keyof T]>()
 
-  constructor(private readonly options: StoreOptions<T>) {
+  constructor(private readonly options: StoreOptions) {
     const { schema } = options
     if (!schema) return
 

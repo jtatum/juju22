@@ -1,7 +1,7 @@
 import type { JSONSchemaType } from 'ajv'
 import type { PluginManifest } from './types'
 
-export const pluginManifestSchema: JSONSchemaType<PluginManifest> = {
+const schema = {
   $id: 'Aidle.PluginManifest',
   type: 'object',
   required: ['id', 'name', 'version', 'author', 'main'],
@@ -11,13 +11,12 @@ export const pluginManifestSchema: JSONSchemaType<PluginManifest> = {
     name: { type: 'string' },
     version: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+$' },
     author: { type: 'string' },
-    description: { type: 'string', nullable: true },
-    homepage: { type: 'string', format: 'uri', nullable: true },
-    license: { type: 'string', nullable: true },
+    description: { type: 'string' },
+    homepage: { type: 'string', format: 'uri' },
+    license: { type: 'string' },
     main: { type: 'string' },
     triggers: {
       type: 'array',
-      nullable: true,
       items: {
         type: 'object',
         required: ['id', 'name'],
@@ -25,14 +24,13 @@ export const pluginManifestSchema: JSONSchemaType<PluginManifest> = {
         properties: {
           id: { type: 'string' },
           name: { type: 'string' },
-          description: { type: 'string', nullable: true },
-          schema: { type: 'object', nullable: true, additionalProperties: true },
+          description: { type: 'string' },
+          schema: { type: 'object', additionalProperties: true },
         },
       },
     },
     actions: {
       type: 'array',
-      nullable: true,
       items: {
         type: 'object',
         required: ['id', 'name'],
@@ -40,21 +38,22 @@ export const pluginManifestSchema: JSONSchemaType<PluginManifest> = {
         properties: {
           id: { type: 'string' },
           name: { type: 'string' },
-          description: { type: 'string', nullable: true },
-          schema: { type: 'object', nullable: true, additionalProperties: true },
+          description: { type: 'string' },
+          schema: { type: 'object', additionalProperties: true },
         },
       },
     },
-    configSchema: { type: 'object', nullable: true, additionalProperties: true },
+    configSchema: { type: 'object', additionalProperties: true },
     permissions: {
       type: 'array',
-      nullable: true,
       items: { type: 'string' },
     },
     dependencies: {
       type: 'object',
-      nullable: true,
+      required: [],
       additionalProperties: { type: 'string' },
     },
   },
-}
+} as const
+
+export const pluginManifestSchema = schema as unknown as JSONSchemaType<PluginManifest>

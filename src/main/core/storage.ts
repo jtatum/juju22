@@ -47,6 +47,11 @@ export interface RuleRecord {
 export class RuleRepository {
   private readonly db: Database.Database
 
+  private static readonly mapRow = (row: Omit<RuleRecord, 'definition'> & { definition: string }): RuleRecord => ({
+    ...row,
+    definition: JSON.parse(row.definition),
+  })
+
   constructor() {
     const dbPath = join(getDataDirectory(), 'rules.db')
     this.db = new Database(dbPath)
@@ -88,20 +93,18 @@ export class RuleRepository {
   }
 
   getRule(id: string): RuleRecord | undefined {
-    const result = this.db.prepare('SELECT * FROM rules WHERE id = ?').get(id)
+    const result = this.db
+      .prepare('SELECT * FROM rules WHERE id = ?')
+      .get(id) as (Omit<RuleRecord, 'definition'> & { definition: string }) | undefined
     if (!result) return undefined
-    return {
-      ...result,
-      definition: JSON.parse(result.definition),
-    }
+    return RuleRepository.mapRow(result)
   }
 
   listRules(): RuleRecord[] {
-    const results = this.db.prepare('SELECT * FROM rules ORDER BY updated_at DESC').all()
-    return results.map((row) => ({
-      ...row,
-      definition: JSON.parse(row.definition),
-    }))
+    const results = this.db
+      .prepare('SELECT * FROM rules ORDER BY updated_at DESC')
+      .all() as Array<Omit<RuleRecord, 'definition'> & { definition: string }>
+    return results.map(RuleRepository.mapRow)
   }
 }
 
