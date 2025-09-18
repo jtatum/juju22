@@ -1,0 +1,15 @@
+{
+  "id": "system",
+  "name": "System Plugin",
+  "version": "0.1.0",
+  "author": "Aidle",
+  "description": "Built-in system integrations (hotkeys, timers, notifications)",
+  "main": "index.js",
+  "triggers": [
+    { "id": "timer.completed", "name": "Timer Completed" }
+  ],
+  "actions": [
+    { "id": "notification.send", "name": "Send Notification" },
+    { "id": "timer.start", "name": "Start Timer" }
+  ]
+}
