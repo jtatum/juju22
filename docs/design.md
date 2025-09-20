@@ -482,6 +482,7 @@ aidle/
 ### Continuous Testing Practices
 - **Pre-commit hooks**: Run unit tests before allowing commits
 - **Static analysis**: `npm run lint` must pass with zero warnings before changes ship (CI blocks merges if ESLint fails)
+- **Type checks**: `npx tsc` must pass
 - **CI/CD Pipeline**:
   - Run all tests on PR creation
   - Nightly E2E test runs

@@ -70,6 +70,18 @@ export class VariableService {
     return deleted
   }
 
+  getAllVariables(): VariableRecord[] {
+    // Get all variables from all scopes
+    const globals = this.repository.list('global')
+    const plugins = this.repository.list('plugin')
+    const rules = this.repository.list('rule')
+    return [...globals, ...plugins, ...rules]
+  }
+
+  set(key: VariableKey, value: unknown, source?: VariableMutation['source']): VariableRecord {
+    return this.setValue(key, value, source)
+  }
+
   createScopedAccessor(ruleId: string, pluginId: string) {
     const buildKey = (scope: VariableScope, key: string, ownerId?: string): VariableKey => {
       if (!key) {

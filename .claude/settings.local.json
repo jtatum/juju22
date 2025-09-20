@@ -3,7 +3,8 @@
     "allow": [
       "Bash(find:*)",
       "Bash(npm run test:unit:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

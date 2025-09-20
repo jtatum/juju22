@@ -6,6 +6,7 @@ import type {
 } from '../rules/types'
 import type { VariableMutation } from '../variables/types'
 import type { MigrationEvent } from '../../main/core/migrations/types'
+import type { SystemEvent } from './system-events'
 
 export interface RuleEvaluationEvent {
   ruleId: string
@@ -28,6 +29,7 @@ export type AidleEvent =
   | { type: 'rule.error'; payload: RuleErrorEvent }
   | { type: 'variables.mutated'; payload: VariableMutation }
   | { type: 'system.migration'; payload: MigrationEvent }
+  | SystemEvent
 
 export interface EventLogEntry {
   type: AidleEvent['type']

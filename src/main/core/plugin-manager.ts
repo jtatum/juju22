@@ -9,6 +9,9 @@ import type { EventBus } from './event-bus'
 import type { DataStores } from './storage'
 import { createLogger, Logger } from './logger'
 import { PluginSandbox, resolvePluginEntry } from './plugin-sandbox'
+import { CircuitBreakerManager } from './circuit-breaker'
+import { RetryManager, RetryProfiles } from './retry-manager'
+import { ErrorReporter, ErrorCategory } from './error-reporter'
 import { pluginManifestSchema } from '../../shared/plugins/manifest-schema'
 import type {
   LoadedPlugin,
@@ -32,6 +35,9 @@ export class PluginManager {
   private readonly validator: ValidateFunction<PluginManifest>
   private readonly plugins = new Map<string, LoadedPlugin>()
   private readonly statuses = new Map<string, PluginStatusUpdate>()
+  private readonly circuitBreakerManager: CircuitBreakerManager
+  private readonly retryManager: RetryManager
+  private readonly errorReporter: ErrorReporter
 
   constructor(options: PluginManagerOptions, eventBus: EventBus, stores: DataStores, logger = createLogger('PluginManager')) {
     this.options = options
@@ -41,6 +47,11 @@ export class PluginManager {
 
     addFormats(this.ajv)
     this.validator = this.ajv.compile(pluginManifestSchema)
+
+    // Initialize reliability components
+    this.circuitBreakerManager = new CircuitBreakerManager()
+    this.retryManager = new RetryManager(eventBus, logger)
+    this.errorReporter = new ErrorReporter(eventBus)
   }
 
   listLoaded(): LoadedPlugin[] {
@@ -91,7 +102,33 @@ export class PluginManager {
       throw new Error(`Plugin ${pluginId} is not loaded`)
     }
 
-    await plugin.instance.executeAction(actionId, params)
+    // Use circuit breaker and retry logic for plugin actions
+    const breaker = this.circuitBreakerManager.getBreaker(`plugin:${pluginId}:${actionId}`, {
+      failureThreshold: 3,
+      resetTimeout: 30000,
+      timeout: 10000,
+    })
+
+    try {
+      await breaker.execute(async () => {
+        return this.retryManager.executeWithRetry(
+          `plugin:${pluginId}:${actionId}`,
+          async () => plugin.instance.executeAction(actionId, params),
+          RetryProfiles.PLUGIN,
+        )
+      })
+    } catch (error) {
+      // Report error with recovery suggestions
+      this.errorReporter.report(error, {
+        category: ErrorCategory.PLUGIN,
+        pluginId,
+        operation: `executeAction:${actionId}`,
+        metadata: { actionId, params },
+      })
+
+      // Re-throw for upstream handling
+      throw error
+    }
   }
 
   async loadPlugins() {

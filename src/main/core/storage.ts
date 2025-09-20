@@ -426,6 +426,14 @@ export class DataStores {
     }
     return store
   }
+
+  getAllPluginConfigs(): Record<string, PluginConfigSnapshot> {
+    const configs: Record<string, PluginConfigSnapshot> = {}
+    for (const [pluginId, store] of this.pluginConfigs) {
+      configs[pluginId] = { ...store.store }
+    }
+    return configs
+  }
 }
 
 const createDatabaseConnection = () => {

@@ -16,7 +16,7 @@ type JsonSchema = JSONSchemaType<unknown> & {
 
 const isObjectSchema = (schema?: JsonSchema): schema is JsonSchema => Boolean(schema && schema.type === 'object' && schema.properties)
 
-const coerceValue = (value: string, schema?: JsonSchema['properties'][string]) => {
+const coerceValue = (value: string, schema?: JsonSchema) => {
   if (!schema || schema.type === 'string') return value
   if (schema.type === 'integer' || schema.type === 'number') {
     const parsed = Number(value)

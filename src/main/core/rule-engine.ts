@@ -369,7 +369,6 @@ export class RuleEngine {
 
       const script = new vm.Script(action.code, {
         filename: `rule-${rule.id}-script.js`,
-        displayErrors: true,
       })
 
       script.runInContext(sandbox, { timeout })
@@ -656,7 +655,7 @@ const delay = (ms: number) =>
     setTimeout(() => resolve(), ms)
   })
 
-const deepEqual = (a: unknown, b: unknown) => {
+const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true
   if (typeof a !== typeof b) return false
   if (Array.isArray(a) && Array.isArray(b)) {

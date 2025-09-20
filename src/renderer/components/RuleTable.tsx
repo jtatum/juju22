@@ -1,5 +1,13 @@
 import { Link } from 'react-router-dom'
-import type { RuleActionInvocation, RuleDefinition } from '@shared/rules/types'
+import type {
+  RuleActionInvocation,
+  RuleDefinition,
+  PluginActionInvocation,
+  VariableActionInvocation,
+  LoopActionInvocation,
+  BranchActionInvocation,
+  RandomActionInvocation
+} from '@shared/rules/types'
 import './RuleTable.css'
 
 interface RuleTableProps {
@@ -59,15 +67,15 @@ const describeAction = (action: RuleActionInvocation) => {
   const kind = action.kind ?? 'plugin'
   switch (kind) {
     case 'plugin':
-      return `${action.pluginId}:${action.actionId}`
+      return `${(action as PluginActionInvocation).pluginId}:${(action as PluginActionInvocation).actionId}`
     case 'variable':
-      return `variable ${action.operation} ${action.scope}.${action.key}`
+      return `variable ${(action as VariableActionInvocation).operation} ${(action as VariableActionInvocation).scope}.${(action as VariableActionInvocation).key}`
     case 'loop':
-      return `loop ×${action.maxIterations ?? 'auto'}`
+      return `loop ×${(action as LoopActionInvocation).maxIterations ?? 'auto'}`
     case 'branch':
-      return `branch ${action.branches.length}`
+      return `branch ${(action as BranchActionInvocation).branches.length}`
     case 'random':
-      return `random pick ${action.pick ?? 1}`
+      return `random pick ${(action as RandomActionInvocation).pick ?? 1}`
     case 'script':
       return 'script'
     default:
