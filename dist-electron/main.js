@@ -8,7 +8,7 @@ import { EventEmitter } from "node:events";
 import Database from "better-sqlite3";
 import process$1 from "node:process";
 import { promisify, isDeepStrictEqual } from "node:util";
-import crypto from "node:crypto";
+import crypto, { randomBytes } from "node:crypto";
 import assert from "node:assert";
 import os from "node:os";
 import { readFile } from "node:fs/promises";
@@ -114,12 +114,18 @@ class EventBus {
   emitPluginTrigger(payload) {
     this.emit({ type: "plugin.trigger", payload });
   }
+  emitPluginStatus(payload) {
+    this.emit({ type: "plugin.status", payload });
+  }
   on(type2, handler) {
     this.emitter.on(type2, handler);
     return () => this.emitter.off(type2, handler);
   }
   onPluginTrigger(handler) {
     return this.on("plugin.trigger", handler);
+  }
+  onPluginStatus(handler) {
+    return this.on("plugin.status", handler);
   }
   onLog(handler) {
     this.emitter.on("log", handler);
@@ -10554,6 +10560,10 @@ const SETTINGS_SCHEMA = {
   telemetry: {
     type: "boolean",
     default: true
+  },
+  pluginSecretsKey: {
+    type: "string",
+    default: ""
   }
 };
 class SettingsStore extends ElectronStore {
@@ -10563,6 +10573,25 @@ class SettingsStore extends ElectronStore {
       cwd: getDataDirectory(),
       schema: SETTINGS_SCHEMA,
       fileExtension: "json"
+    });
+  }
+}
+class PluginConfigStore extends ElectronStore {
+  constructor(pluginId) {
+    super({
+      name: `plugin-${pluginId}-config`,
+      cwd: getDataDirectory(),
+      fileExtension: "json"
+    });
+  }
+}
+class PluginSecretStore extends ElectronStore {
+  constructor(pluginId, encryptionKey) {
+    super({
+      name: `plugin-${pluginId}-secrets`,
+      cwd: getDataDirectory(),
+      fileExtension: "json",
+      encryptionKey
     });
   }
 }
@@ -10691,6 +10720,35 @@ class RuleRepository {
 class DataStores {
   settings = new SettingsStore();
   rules = new RuleRepository();
+  pluginConfigs = /* @__PURE__ */ new Map();
+  pluginSecrets = /* @__PURE__ */ new Map();
+  secretsKey;
+  constructor() {
+    const existingKey = this.settings.get("pluginSecretsKey");
+    if (!existingKey) {
+      const key = randomBytes(32).toString("hex");
+      this.settings.set("pluginSecretsKey", key);
+      this.secretsKey = key;
+    } else {
+      this.secretsKey = existingKey;
+    }
+  }
+  getPluginConfig(pluginId) {
+    let store = this.pluginConfigs.get(pluginId);
+    if (!store) {
+      store = new PluginConfigStore(pluginId);
+      this.pluginConfigs.set(pluginId, store);
+    }
+    return store;
+  }
+  getPluginSecrets(pluginId) {
+    let store = this.pluginSecrets.get(pluginId);
+    if (!store) {
+      store = new PluginSecretStore(pluginId, this.secretsKey);
+      this.pluginSecrets.set(pluginId, store);
+    }
+    return store;
+  }
 }
 const getDataDirectory = () => {
   const dir = join(app$1.getPath("userData"), "data");
@@ -17992,25 +18050,36 @@ function requireDist() {
 }
 var distExports = requireDist();
 const YAML = /* @__PURE__ */ getDefaultExportFromCjs(distExports);
-const allowedModules = /* @__PURE__ */ new Set([
+const DEFAULT_ALLOWED_MODULES = /* @__PURE__ */ new Set([
   "events",
   "path",
   "url",
   "buffer",
   "timers",
-  "util"
+  "util",
+  "http",
+  "https",
+  "net",
+  "crypto"
 ]);
-const allowedNodePrefixes = ["node:"];
-function createSandboxedRequire(entryPath) {
+const DEFAULT_NODE_PREFIXES = ["node:"];
+const isRelativeSpecifier = (specifier) => specifier.startsWith("./") || specifier.startsWith("../") || specifier.startsWith("/");
+function createSandboxedRequire(entryPath, options) {
   const localRequire = createRequire(entryPath);
+  const allowedModules = new Set(options?.allowedModules ?? []);
+  for (const module of DEFAULT_ALLOWED_MODULES) {
+    allowedModules.add(module);
+  }
+  const allowedPrefixes = new Set(options?.allowedNodePrefixes ?? DEFAULT_NODE_PREFIXES);
+  const allowedPackages = new Set(options?.allowedPackages ?? []);
   return (specifier) => {
-    if (specifier.startsWith("./") || specifier.startsWith("../") || specifier.startsWith("/")) {
+    if (isRelativeSpecifier(specifier)) {
       return localRequire(specifier);
     }
-    if (allowedNodePrefixes.some((prefix) => specifier.startsWith(prefix))) {
+    if ([...allowedPrefixes].some((prefix) => specifier.startsWith(prefix))) {
       return localRequire(specifier);
     }
-    if (allowedModules.has(specifier)) {
+    if (allowedModules.has(specifier) || allowedPackages.has(specifier)) {
       return localRequire(specifier);
     }
     throw new Error(`Module '${specifier}' is not allowed in sandboxed plugin`);
@@ -18035,8 +18104,10 @@ function createProcessProxy(pluginId) {
 }
 class PluginSandbox {
   entryPath;
-  constructor(entryPath) {
+  options;
+  constructor(entryPath, options) {
     this.entryPath = entryPath;
+    this.options = options;
   }
   async load(pluginId) {
     const resolvedPath = this.resolveEntry(this.entryPath);
@@ -18051,7 +18122,7 @@ class PluginSandbox {
     const sandbox = vm.createContext({
       module,
       exports: module.exports,
-      require: createSandboxedRequire(resolvedPath),
+      require: createSandboxedRequire(resolvedPath, this.options),
       __dirname: dirname(resolvedPath),
       __filename: resolvedPath,
       console,
@@ -18191,6 +18262,14 @@ class PluginManager {
       try {
         await runtime.instance.stopListening?.();
         await runtime.instance.destroy?.();
+        this.eventBus.emitPluginStatus({
+          pluginId,
+          status: {
+            state: "disconnected",
+            message: "Plugin unloaded",
+            at: Date.now()
+          }
+        });
       } catch (error) {
         this.logger.error(`Error while unloading plugin ${pluginId}`, { error });
       }
@@ -18248,7 +18327,7 @@ class PluginManager {
       return;
     }
     const entryPath = resolvePluginEntry(directory, manifest.main);
-    const sandbox = new PluginSandbox(entryPath);
+    const sandbox = new PluginSandbox(entryPath, this.buildSandboxOptions(manifest));
     const module = await sandbox.load(manifest.id);
     this.validatePluginModule(module, manifest);
     const runtimeLogger = createLogger(`plugin:${manifest.id}`);
@@ -18260,11 +18339,39 @@ class PluginManager {
         timestamp: Date.now()
       });
     };
+    const captureStatus = (status) => {
+      this.eventBus.emitPluginStatus({
+        pluginId: manifest.id,
+        status: {
+          ...status,
+          at: status.at ?? Date.now()
+        }
+      });
+    };
+    const configStore = this.stores.getPluginConfig(manifest.id);
+    const secretStore = this.stores.getPluginSecrets(manifest.id);
+    const createAccessor = (store) => ({
+      get: (key) => store.get(key),
+      set: (key, value) => {
+        store.set(key, value);
+      },
+      delete: (key) => {
+        store.delete(key);
+      },
+      clear: () => {
+        store.clear();
+      }
+    });
     const context = {
       logger: runtimeLogger,
       eventBus: this.eventBus,
       settings: this.stores.settings,
-      emitTrigger: captureEmit
+      emitTrigger: captureEmit,
+      emitStatus: captureStatus,
+      storage: {
+        config: createAccessor(configStore),
+        secrets: createAccessor(secretStore)
+      }
     };
     await module.initialize?.(context);
     const triggers = module.registerTriggers?.() ?? [];
@@ -18294,6 +18401,27 @@ class PluginManager {
         throw new Error(`Plugin ${manifest.id} is missing required function '${String(method)}'`);
       }
     }
+  }
+  buildSandboxOptions(manifest) {
+    const allowedPackages = /* @__PURE__ */ new Set();
+    const allowedModules = /* @__PURE__ */ new Set();
+    if (manifest.dependencies) {
+      for (const dependency of Object.keys(manifest.dependencies)) {
+        allowedPackages.add(dependency);
+      }
+    }
+    if (manifest.permissions) {
+      for (const permission of manifest.permissions) {
+        const [prefix, value] = permission.split(":");
+        if (prefix === "module" && value) {
+          allowedModules.add(value);
+        }
+      }
+    }
+    return {
+      allowedPackages: Array.from(allowedPackages),
+      allowedModules: Array.from(allowedModules)
+    };
   }
 }
 const resolveBuiltInPluginDirectory = () => join(process.env.APP_ROOT ?? process.cwd(), "src", "plugins");
@@ -18677,6 +18805,19 @@ function buildMenu() {
     {
       label: "File",
       submenu: [{ role: "close" }]
+    },
+    {
+      label: "Edit",
+      submenu: [
+        { role: "undo" },
+        { role: "redo" },
+        { type: "separator" },
+        { role: "cut" },
+        { role: "copy" },
+        { role: "paste" },
+        { role: "pasteAndMatchStyle" },
+        { role: "selectAll" }
+      ]
     },
     {
       label: "View",

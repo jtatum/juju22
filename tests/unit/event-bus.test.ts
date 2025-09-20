@@ -30,4 +30,21 @@ describe('EventBus', () => {
     expect(logs).toHaveLength(1)
     expect(eventBus.getRecentLogEntries()).toHaveLength(1)
   })
+
+  it('emits plugin status updates', () => {
+    const eventBus = new EventBus({ logger: createMockLogger(), maxLogEntries: 5 })
+    const statuses: unknown[] = []
+    eventBus.onPluginStatus((payload) => statuses.push(payload))
+
+    eventBus.emitPluginStatus({
+      pluginId: 'system',
+      status: {
+        state: 'connected',
+        message: 'Ready',
+        at: Date.now(),
+      },
+    })
+
+    expect(statuses).toHaveLength(1)
+  })
 })

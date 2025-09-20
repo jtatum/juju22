@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { AidleEvent, EventLogEntry } from '../../shared/events/types'
-import type { PluginEventPayload } from '../../shared/plugins/types'
+import type { PluginEventPayload, PluginStatusPayload } from '../../shared/plugins/types'
 import { createLogger, Logger } from './logger'
 
 type EventPayloadByType = {
@@ -46,6 +46,10 @@ export class EventBus {
     this.emit({ type: 'plugin.trigger', payload })
   }
 
+  emitPluginStatus(payload: PluginStatusPayload) {
+    this.emit({ type: 'plugin.status', payload })
+  }
+
   on<T extends AidleEvent['type']>(type: T, handler: (payload: EventPayloadByType[T]) => void) {
     this.emitter.on(type, handler)
     return () => this.emitter.off(type, handler)
@@ -53,6 +57,10 @@ export class EventBus {
 
   onPluginTrigger(handler: (payload: PluginEventPayload) => void) {
     return this.on('plugin.trigger', handler)
+  }
+
+  onPluginStatus(handler: (payload: PluginStatusPayload) => void) {
+    return this.on('plugin.status', handler)
   }
 
   onLog(handler: (entry: EventLogEntry) => void) {

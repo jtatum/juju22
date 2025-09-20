@@ -1,4 +1,4 @@
-import type { PluginEventPayload } from '../plugins/types'
+import type { PluginEventPayload, PluginStatusPayload } from '../plugins/types'
 import type {
   RuleActionDispatchEvent,
   RuleEvaluationContext,
@@ -20,6 +20,7 @@ export interface RuleErrorEvent {
 
 export type AidleEvent =
   | { type: 'plugin.trigger'; payload: PluginEventPayload }
+  | { type: 'plugin.status'; payload: PluginStatusPayload }
   | { type: 'rule.evaluation'; payload: RuleEvaluationEvent }
   | { type: 'rule.action'; payload: RuleActionDispatchEvent }
   | { type: 'rule.error'; payload: RuleErrorEvent }

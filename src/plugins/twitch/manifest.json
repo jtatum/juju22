@@ -1,7 +1,7 @@
 {
   "id": "twitch",
   "name": "Twitch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Aidle",
   "description": "Streams chat events and channel notifications from Twitch in mock mode.",
   "main": "index.js",
@@ -20,6 +20,11 @@
       "id": "channel.subscription",
       "name": "New Subscription",
       "description": "Fires on a new subscription or resubscription."
+    },
+    {
+      "id": "channel.raid",
+      "name": "Raid Received",
+      "description": "Fires when the channel is raided."
     }
   ],
   "actions": [
@@ -32,6 +37,25 @@
       "id": "channel.shoutout",
       "name": "Send Shoutout",
       "description": "Send a shoutout to another channel."
+    },
+    {
+      "id": "channel.update",
+      "name": "Update Channel Info",
+      "description": "Update title and category."
+    },
+    {
+      "id": "clip.create",
+      "name": "Create Clip",
+      "description": "Create a clip from the live stream."
+    },
+    {
+      "id": "connection.configure",
+      "name": "Configure Twitch Connection",
+      "description": "Persist Twitch credentials and preferences."
     }
-  ]
+  ],
+  "dependencies": {
+    "tmi.js": "^1.8.5"
+  },
+  "permissions": ["module:tmi.js"]
 }

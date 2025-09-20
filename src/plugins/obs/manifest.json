@@ -1,7 +1,7 @@
 {
   "id": "obs",
   "name": "OBS Studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Aidle",
   "description": "Streams scene and streaming state changes from OBS Studio and exposes high-level control actions.",
   "main": "index.js",
@@ -37,6 +37,20 @@
       "id": "stream.stop",
       "name": "Stop Stream",
       "description": "Stop streaming in OBS."
+    },
+    {
+      "id": "connection.configure",
+      "name": "Configure OBS Connection",
+      "description": "Persist OBS connection settings."
+    },
+    {
+      "id": "connection.refresh",
+      "name": "Reconnect",
+      "description": "Reconnect to OBS WebSocket."
     }
-  ]
+  ],
+  "dependencies": {
+    "obs-websocket-js": "^5.0.3"
+  },
+  "permissions": ["module:obs-websocket-js"]
 }

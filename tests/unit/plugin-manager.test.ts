@@ -16,7 +16,11 @@ const createMockLogger = (): Logger =>
     error: vi.fn(),
   } as unknown as Logger)
 
-const createTestPlugin = (root: string, manifestOverrides: Record<string, unknown> = {}) => {
+const createTestPlugin = (
+  root: string,
+  manifestOverrides: Record<string, unknown> = {},
+  moduleBody?: string,
+) => {
   const pluginRoot = join(root, 'demo-plugin')
   mkdirSync(pluginRoot, { recursive: true })
   const manifest = {
@@ -30,13 +34,15 @@ const createTestPlugin = (root: string, manifestOverrides: Record<string, unknow
     ...manifestOverrides,
   }
   writeFileSync(join(pluginRoot, 'manifest.json'), JSON.stringify(manifest, null, 2))
-  writeFileSync(
-    join(pluginRoot, 'index.js'),
-    `const manifest = require('./manifest.json')
+  const implementation =
+    moduleBody ?? `const manifest = require('./manifest.json')
 
 module.exports = {
   manifest,
-  async initialize() {},
+  async initialize(ctx) {
+    ctx.storage.config.set('booted', true)
+    ctx.emitStatus({ state: 'connected', message: 'ready' })
+  },
   registerTriggers() { return manifest.triggers },
   registerActions() { return manifest.actions },
   async startListening() {},
@@ -44,8 +50,9 @@ module.exports = {
   async executeAction() {},
   async destroy() {},
 }
-`,
-  )
+`
+
+  writeFileSync(join(pluginRoot, 'index.js'), implementation)
 }
 
 describe('PluginManager', () => {
@@ -94,6 +101,53 @@ describe('PluginManager', () => {
       )
 
       await expect(manager.loadPlugins()).rejects.toThrow(/PluginManager encountered errors/)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('allows manifest dependencies inside sandboxed plugins', async () => {
+    const root = mkdtempSync(join(process.cwd(), 'aidle-plugin-deps-'))
+    const externalDir = join(root, 'external')
+    mkdirSync(externalDir, { recursive: true })
+    createTestPlugin(
+      root,
+      {
+        dependencies: { cron: '^2.4.4' },
+      },
+      `const manifest = require('./manifest.json')
+const { CronJob } = require('cron')
+
+module.exports = {
+  manifest,
+  async initialize(ctx) {
+    ctx.emitStatus({ state: 'connected', message: 'cron-loaded' })
+    new CronJob('* * * * *', () => {})
+  },
+  registerTriggers() { return manifest.triggers },
+  registerActions() { return manifest.actions },
+  async startListening() {},
+  async stopListening() {},
+  async executeAction() {},
+  async destroy() {},
+}
+`,
+    )
+
+    try {
+      const manager = new PluginManager(
+        {
+          builtInDirectory: root,
+          externalDirectory: externalDir,
+        },
+        new EventBus(),
+        new DataStores(),
+        createMockLogger(),
+      )
+
+      await manager.loadPlugins()
+      const plugin = manager.getPlugin('demo-plugin')
+      expect(plugin).toBeDefined()
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

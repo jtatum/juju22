@@ -50,4 +50,15 @@ describe('DataStores', () => {
     stores.rules.deleteRule('rule-1')
     expect(stores.rules.getRule('rule-1')).toBeUndefined()
   })
+
+  it('provides plugin-scoped config and secret stores', () => {
+    const stores = createStores()
+    const config = stores.getPluginConfig('test-plugin')
+    config.set('foo', 'bar')
+    expect(config.get('foo')).toBe('bar')
+
+    const secrets = stores.getPluginSecrets('test-plugin')
+    secrets.set('token', 'secret-value')
+    expect(secrets.get('token')).toBe('secret-value')
+  })
 })

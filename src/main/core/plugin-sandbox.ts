@@ -6,34 +6,55 @@ import vm from 'node:vm'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { PluginModule } from '../../shared/plugins/types'
 
-const allowedModules = new Set([
+const DEFAULT_ALLOWED_MODULES = new Set([
   'events',
   'path',
   'url',
   'buffer',
   'timers',
   'util',
+  'http',
+  'https',
+  'net',
+  'crypto',
 ])
 
-const allowedNodePrefixes = ['node:']
+const DEFAULT_NODE_PREFIXES = ['node:']
 
-function createSandboxedRequire(entryPath: string) {
+const isRelativeSpecifier = (specifier: string) =>
+  specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/')
+
+function createSandboxedRequire(entryPath: string, options?: PluginSandboxOptions) {
   const localRequire = createRequire(entryPath)
+  const allowedModules = new Set(options?.allowedModules ?? [])
+  for (const module of DEFAULT_ALLOWED_MODULES) {
+    allowedModules.add(module)
+  }
+
+  const allowedPrefixes = new Set(options?.allowedNodePrefixes ?? DEFAULT_NODE_PREFIXES)
+  const allowedPackages = new Set(options?.allowedPackages ?? [])
+
   return (specifier: string) => {
-    if (specifier.startsWith('./') || specifier.startsWith('../') || specifier.startsWith('/')) {
+    if (isRelativeSpecifier(specifier)) {
       return localRequire(specifier)
     }
 
-    if (allowedNodePrefixes.some((prefix) => specifier.startsWith(prefix))) {
+    if ([...allowedPrefixes].some((prefix) => specifier.startsWith(prefix))) {
       return localRequire(specifier)
     }
 
-    if (allowedModules.has(specifier)) {
+    if (allowedModules.has(specifier) || allowedPackages.has(specifier)) {
       return localRequire(specifier)
     }
 
     throw new Error(`Module '${specifier}' is not allowed in sandboxed plugin`)
   }
+}
+
+export interface PluginSandboxOptions {
+  allowedModules?: string[]
+  allowedNodePrefixes?: string[]
+  allowedPackages?: string[]
 }
 
 function createProcessProxy(pluginId: string) {
@@ -57,9 +78,11 @@ function createProcessProxy(pluginId: string) {
 
 export class PluginSandbox {
   private readonly entryPath: string
+  private readonly options?: PluginSandboxOptions
 
-  constructor(entryPath: string) {
+  constructor(entryPath: string, options?: PluginSandboxOptions) {
     this.entryPath = entryPath
+    this.options = options
   }
 
   async load(pluginId: string): Promise<PluginModule> {
@@ -77,7 +100,7 @@ export class PluginSandbox {
     const sandbox = vm.createContext({
       module,
       exports: module.exports,
-      require: createSandboxedRequire(resolvedPath),
+      require: createSandboxedRequire(resolvedPath, this.options),
       __dirname: dirname(resolvedPath),
       __filename: resolvedPath,
       console,

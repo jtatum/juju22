@@ -2,6 +2,7 @@ import Database from 'better-sqlite3'
 import Store from 'electron-store'
 import * as electron from 'electron'
 import { existsSync, mkdirSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import type { RuleDefinition } from '../../shared/rules/types'
 
@@ -34,6 +35,10 @@ const SETTINGS_SCHEMA = {
     type: 'boolean',
     default: true,
   },
+  pluginSecretsKey: {
+    type: 'string',
+    default: '',
+  },
 } as const
 
 export type SettingsSchema = {
@@ -51,6 +56,27 @@ export class SettingsStore extends Store<SettingsSchema> {
       cwd: getDataDirectory(),
       schema: SETTINGS_SCHEMA,
       fileExtension: 'json',
+    })
+  }
+}
+
+class PluginConfigStore extends Store<Record<string, unknown>> {
+  constructor(pluginId: string) {
+    super({
+      name: `plugin-${pluginId}-config`,
+      cwd: getDataDirectory(),
+      fileExtension: 'json',
+    })
+  }
+}
+
+class PluginSecretStore extends Store<Record<string, unknown>> {
+  constructor(pluginId: string, encryptionKey: string) {
+    super({
+      name: `plugin-${pluginId}-secrets`,
+      cwd: getDataDirectory(),
+      fileExtension: 'json',
+      encryptionKey,
     })
   }
 }
@@ -198,6 +224,38 @@ export class RuleRepository {
 export class DataStores {
   readonly settings = new SettingsStore()
   readonly rules = new RuleRepository()
+  private readonly pluginConfigs = new Map<string, PluginConfigStore>()
+  private readonly pluginSecrets = new Map<string, PluginSecretStore>()
+  private readonly secretsKey: string
+
+  constructor() {
+    const existingKey = this.settings.get('pluginSecretsKey')
+    if (!existingKey) {
+      const key = randomBytes(32).toString('hex')
+      this.settings.set('pluginSecretsKey', key)
+      this.secretsKey = key
+    } else {
+      this.secretsKey = existingKey
+    }
+  }
+
+  getPluginConfig(pluginId: string) {
+    let store = this.pluginConfigs.get(pluginId)
+    if (!store) {
+      store = new PluginConfigStore(pluginId)
+      this.pluginConfigs.set(pluginId, store)
+    }
+    return store
+  }
+
+  getPluginSecrets(pluginId: string) {
+    let store = this.pluginSecrets.get(pluginId)
+    if (!store) {
+      store = new PluginSecretStore(pluginId, this.secretsKey)
+      this.pluginSecrets.set(pluginId, store)
+    }
+    return store
+  }
 }
 
 export const getDataDirectory = () => {

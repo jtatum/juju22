@@ -38,11 +38,34 @@ export interface ValidationResult {
   errors?: string[]
 }
 
+export interface PluginStorageAccessor {
+  get<T = unknown>(key: string): T | undefined
+  set<T = unknown>(key: string, value: T): void
+  delete(key: string): void
+  clear(): void
+}
+
+export interface PluginStorageBridge {
+  config: PluginStorageAccessor
+  secrets: PluginStorageAccessor
+}
+
+export type PluginConnectionState = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'disconnected' | 'error'
+
+export interface PluginStatusUpdate {
+  state: PluginConnectionState
+  message?: string
+  details?: Record<string, unknown>
+  at?: number
+}
+
 export interface PluginContext {
   logger: Logger
   eventBus: EventBus
   settings: SettingsStore
   emitTrigger: (triggerId: string, data: unknown) => void
+  emitStatus: (status: PluginStatusUpdate) => void
+  storage: PluginStorageBridge
 }
 
 export interface MatchedRuleSummary {
@@ -57,6 +80,11 @@ export interface PluginEventPayload {
   data: unknown
   timestamp: number
   matchedRules?: MatchedRuleSummary[]
+}
+
+export interface PluginStatusPayload {
+  pluginId: string
+  status: PluginStatusUpdate
 }
 
 export interface PluginSummary {

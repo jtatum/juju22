@@ -41,6 +41,8 @@ Create the most extensible and user-friendly automation platform for content cre
 - **Manifest-based**: JSON/YAML configuration for plugin metadata
 - **Sandboxed execution**: Plugins run in isolated contexts
 - **Version management**: Automatic updates and compatibility checks
+- **Status telemetry**: Plugins publish connection health events for UI surfaces
+- **Scoped storage**: Per-plugin config and encrypted secret stores managed by the runtime
 
 ### Rule Engine
 - **Visual builder**: Drag-and-drop interface for rule creation

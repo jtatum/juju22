@@ -14,6 +14,7 @@ import type {
   LoadedPlugin,
   PluginManifest,
   PluginModule,
+  PluginStatusUpdate,
 } from '../../shared/plugins/types'
 
 export interface PluginManagerOptions {
@@ -82,6 +83,14 @@ export class PluginManager {
       try {
         await runtime.instance.stopListening?.()
         await runtime.instance.destroy?.()
+        this.eventBus.emitPluginStatus({
+          pluginId,
+          status: {
+            state: 'disconnected',
+            message: 'Plugin unloaded',
+            at: Date.now(),
+          },
+        })
       } catch (error) {
         this.logger.error(`Error while unloading plugin ${pluginId}`, { error })
       }
@@ -150,7 +159,7 @@ export class PluginManager {
     }
 
     const entryPath = resolvePluginEntry(directory, manifest.main)
-    const sandbox = new PluginSandbox(entryPath)
+    const sandbox = new PluginSandbox(entryPath, this.buildSandboxOptions(manifest))
     const module = await sandbox.load(manifest.id)
     this.validatePluginModule(module, manifest)
 
@@ -164,11 +173,42 @@ export class PluginManager {
       })
     }
 
+    const captureStatus = (status: PluginStatusUpdate) => {
+      this.eventBus.emitPluginStatus({
+        pluginId: manifest.id,
+        status: {
+          ...status,
+          at: status.at ?? Date.now(),
+        },
+      })
+    }
+
+    const configStore = this.stores.getPluginConfig(manifest.id)
+    const secretStore = this.stores.getPluginSecrets(manifest.id)
+
+    const createAccessor = (store: { get: (key: string) => unknown; set: (key: string, value: unknown) => void; delete: (key: string) => void; clear: () => void }) => ({
+      get: <T = unknown>(key: string): T | undefined => store.get(key) as T | undefined,
+      set: <T = unknown>(key: string, value: T) => {
+        store.set(key, value as unknown)
+      },
+      delete: (key: string) => {
+        store.delete(key)
+      },
+      clear: () => {
+        store.clear()
+      },
+    })
+
     const context = {
       logger: runtimeLogger,
       eventBus: this.eventBus,
       settings: this.stores.settings,
       emitTrigger: captureEmit,
+      emitStatus: captureStatus,
+      storage: {
+        config: createAccessor(configStore),
+        secrets: createAccessor(secretStore),
+      },
     }
 
     await module.initialize?.(context)
@@ -202,6 +242,31 @@ export class PluginManager {
       if (typeof module[method] !== 'function') {
         throw new Error(`Plugin ${manifest.id} is missing required function '${String(method)}'`)
       }
+    }
+  }
+
+  private buildSandboxOptions(manifest: PluginManifest) {
+    const allowedPackages = new Set<string>()
+    const allowedModules = new Set<string>()
+
+    if (manifest.dependencies) {
+      for (const dependency of Object.keys(manifest.dependencies)) {
+        allowedPackages.add(dependency)
+      }
+    }
+
+    if (manifest.permissions) {
+      for (const permission of manifest.permissions) {
+        const [prefix, value] = permission.split(':')
+        if (prefix === 'module' && value) {
+          allowedModules.add(value)
+        }
+      }
+    }
+
+    return {
+      allowedPackages: Array.from(allowedPackages),
+      allowedModules: Array.from(allowedModules),
     }
   }
 }

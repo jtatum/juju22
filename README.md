@@ -16,6 +16,13 @@ Aidle is a cross-platform automation and integration platform for content creato
 - Expanded EventBus featuring structured logging, renderer dashboards, and rule evaluation telemetry
 - Mock OBS and Twitch plugin scaffolds demonstrating the Phase 2 integration surface
 
+## Phase 3 Highlights
+
+- Plugin-scoped config and encrypted credential stores with status telemetry events for observability
+- System plugin hotkeys, cron schedules, filesystem watchers, and webhook ingestion ready for live automation
+- OBS plugin powered by `obs-websocket-js` with reconnect/backoff and real scene/stream control (mock fallback retained)
+- Twitch plugin wired to `tmi.js` chat plus Helix APIs for followers, subscriptions, raids, shoutouts, channel metadata, and clip creation
+
 ## Getting Started
 
 ```bash

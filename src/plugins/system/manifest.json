@@ -1,15 +1,31 @@
 {
   "id": "system",
   "name": "System Plugin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "Aidle",
   "description": "Built-in system integrations (hotkeys, timers, notifications)",
   "main": "index.js",
   "triggers": [
-    { "id": "timer.completed", "name": "Timer Completed" }
+    { "id": "timer.completed", "name": "Timer Completed" },
+    { "id": "hotkey.pressed", "name": "Hotkey Pressed" },
+    { "id": "schedule.fired", "name": "Schedule Fired" },
+    { "id": "file.changed", "name": "File Changed" },
+    { "id": "webhook.received", "name": "Webhook Received" }
   ],
   "actions": [
     { "id": "notification.send", "name": "Send Notification" },
-    { "id": "timer.start", "name": "Start Timer" }
-  ]
+    { "id": "timer.start", "name": "Start Timer" },
+    { "id": "hotkey.register", "name": "Register Hotkey" },
+    { "id": "hotkey.unregister", "name": "Unregister Hotkey" },
+    { "id": "schedule.register", "name": "Register Schedule" },
+    { "id": "schedule.unregister", "name": "Unregister Schedule" },
+    { "id": "file.watch", "name": "Watch Path" },
+    { "id": "file.unwatch", "name": "Unwatch Path" },
+    { "id": "webhook.configure", "name": "Configure Webhook" }
+  ],
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "cron": "^2.4.4"
+  },
+  "permissions": ["module:electron"]
 }
