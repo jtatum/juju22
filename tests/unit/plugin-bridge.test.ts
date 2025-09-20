@@ -8,14 +8,19 @@ const createPluginManagerMock = () => ({
       manifest: { id: 'demo', name: 'Demo', version: '1.0.0', author: 'Tester' },
       triggers: [],
       actions: [],
+      configSchema: undefined,
     },
   ]),
   getPlugin: vi.fn(() => ({
     manifest: { id: 'demo', name: 'Demo', version: '1.0.0', author: 'Tester' },
     triggers: [],
     actions: [],
+    configSchema: undefined,
   })),
   executeAction: vi.fn(async () => undefined),
+  listStatuses: vi.fn(() => []),
+  getConfig: vi.fn(() => ({})),
+  updateConfig: vi.fn(() => ({})),
 })
 
 describe('registerPluginBridge', () => {
@@ -37,5 +42,20 @@ describe('registerPluginBridge', () => {
     expect(executeHandler).toBeTypeOf('function')
     await executeHandler({}, { pluginId: 'demo', actionId: 'demo.action', params: {} })
     expect(pluginManager.executeAction).toHaveBeenCalledWith('demo', 'demo.action', {})
+
+    const statusHandler = (ipcMain.handle as unknown as vi.Mock).mock.calls.find((call) => call[0] === 'plugins:statuses')?.[1]
+    expect(statusHandler).toBeTypeOf('function')
+    await statusHandler()
+    expect(pluginManager.listStatuses).toHaveBeenCalled()
+
+    const configHandler = (ipcMain.handle as unknown as vi.Mock).mock.calls.find((call) => call[0] === 'plugins:get-config')?.[1]
+    expect(configHandler).toBeTypeOf('function')
+    await configHandler({}, 'demo')
+    expect(pluginManager.getConfig).toHaveBeenCalledWith('demo')
+
+    const saveConfigHandler = (ipcMain.handle as unknown as vi.Mock).mock.calls.find((call) => call[0] === 'plugins:save-config')?.[1]
+    expect(saveConfigHandler).toBeTypeOf('function')
+    await saveConfigHandler({}, { pluginId: 'demo', config: { foo: 'bar' } })
+    expect(pluginManager.updateConfig).toHaveBeenCalledWith('demo', { foo: 'bar' })
   })
 })

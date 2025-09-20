@@ -7,6 +7,7 @@ const createRuleEngineMock = () => ({
   getRule: vi.fn(() => null),
   saveRule: vi.fn(async (rule) => rule),
   deleteRule: vi.fn(),
+  testRule: vi.fn(() => ({ ruleId: 'rule-1', matched: true })),
 })
 
 describe('registerRuleBridge', () => {
@@ -32,5 +33,10 @@ describe('registerRuleBridge', () => {
     expect(deleteHandler).toBeTypeOf('function')
     await deleteHandler?.({}, 'rule-1')
     expect(ruleEngine.deleteRule).toHaveBeenCalledWith('rule-1')
+
+    const testHandler = (ipcMain.handle as unknown as vi.Mock).mock.calls.find((call) => call[0] === 'rules:test')?.[1]
+    expect(testHandler).toBeTypeOf('function')
+    await testHandler?.({}, { rule: { id: 'rule-1' }, data: {} })
+    expect(ruleEngine.testRule).toHaveBeenCalledWith({ id: 'rule-1' }, {})
   })
 })

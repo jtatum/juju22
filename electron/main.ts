@@ -83,7 +83,7 @@ async function createMainWindow() {
     await win.loadFile(join(process.env.APP_ROOT!, 'dist', 'index.html'))
   }
 
-  registerEventBridge(win, eventBus)
+  registerEventBridge(win, eventBus, () => pluginManager?.listStatuses() ?? [])
   return win
 }
 

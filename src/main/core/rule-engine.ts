@@ -63,6 +63,10 @@ export class RuleEngine {
     this.repository.deleteRule(id)
   }
 
+  testRule(rule: RuleDefinition, data: unknown): RuleEvaluationResult {
+    return evaluateRule(rule, data)
+  }
+
   private async handleTrigger(payload: PluginEventPayload) {
     const rules = this.repository.listByTrigger({ pluginId: payload.pluginId, triggerId: payload.triggerId })
     if (rules.length === 0) {

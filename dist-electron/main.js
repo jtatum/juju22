@@ -10741,6 +10741,14 @@ class DataStores {
     }
     return store;
   }
+  getPluginConfigSnapshot(pluginId) {
+    const store = this.getPluginConfig(pluginId);
+    return { ...store.store };
+  }
+  setPluginConfigSnapshot(pluginId, snapshot) {
+    const store = this.getPluginConfig(pluginId);
+    store.store = { ...snapshot };
+  }
   getPluginSecrets(pluginId) {
     let store = this.pluginSecrets.get(pluginId);
     if (!store) {
@@ -18218,6 +18226,7 @@ class PluginManager {
   ajv = new Ajv({ allErrors: true, allowUnionTypes: true });
   validator;
   plugins = /* @__PURE__ */ new Map();
+  statuses = /* @__PURE__ */ new Map();
   constructor(options, eventBus2, stores2, logger2 = createLogger("PluginManager")) {
     this.options = options;
     this.eventBus = eventBus2;
@@ -18231,6 +18240,34 @@ class PluginManager {
   }
   getPlugin(pluginId) {
     return this.plugins.get(pluginId);
+  }
+  listStatuses() {
+    return Array.from(this.statuses.entries()).map(([pluginId, status]) => ({ pluginId, status }));
+  }
+  getStatus(pluginId) {
+    return this.statuses.get(pluginId);
+  }
+  getConfig(pluginId) {
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} is not loaded`);
+    }
+    return this.stores.getPluginConfigSnapshot(pluginId);
+  }
+  updateConfig(pluginId, update) {
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} is not loaded`);
+    }
+    if (plugin.instance.validateConfig) {
+      const validation2 = plugin.instance.validateConfig(update);
+      if (!validation2.valid) {
+        throw new Error(`Invalid configuration for plugin ${pluginId}: ${(validation2.errors ?? []).join(", ")}`);
+      }
+    }
+    this.stores.setPluginConfigSnapshot(pluginId, update);
+    this.logger.info(`Updated configuration for plugin ${pluginId}`);
+    return this.getConfig(pluginId);
   }
   async executeAction(pluginId, actionId, params) {
     const plugin = this.plugins.get(pluginId);
@@ -18273,6 +18310,7 @@ class PluginManager {
       } catch (error) {
         this.logger.error(`Error while unloading plugin ${pluginId}`, { error });
       }
+      this.statuses.delete(pluginId);
     }
     this.plugins.clear();
   }
@@ -18340,12 +18378,14 @@ class PluginManager {
       });
     };
     const captureStatus = (status) => {
+      const normalized = {
+        ...status,
+        at: status.at ?? Date.now()
+      };
+      this.statuses.set(manifest.id, normalized);
       this.eventBus.emitPluginStatus({
         pluginId: manifest.id,
-        status: {
-          ...status,
-          at: status.at ?? Date.now()
-        }
+        status: normalized
       });
     };
     const configStore = this.stores.getPluginConfig(manifest.id);
@@ -18376,15 +18416,20 @@ class PluginManager {
     await module.initialize?.(context);
     const triggers = module.registerTriggers?.() ?? [];
     const actions = module.registerActions?.() ?? [];
+    const configSchema = module.getConfigSchema?.();
     this.plugins.set(manifest.id, {
       manifest,
       instance: module,
       context,
       triggers,
-      actions
+      actions,
+      configSchema
     });
     await module.startListening?.();
     this.logger.info(`Loaded plugin ${manifest.id}@${manifest.version} from ${basename(directory)}`);
+    if (!this.statuses.has(manifest.id)) {
+      captureStatus({ state: "idle", message: "Plugin loaded" });
+    }
   }
   validatePluginModule(module, manifest) {
     const requiredMethods = [
@@ -18464,6 +18509,9 @@ class RuleEngine {
   }
   deleteRule(id2) {
     this.repository.deleteRule(id2);
+  }
+  testRule(rule, data) {
+    return evaluateRule(rule, data);
   }
   async handleTrigger(payload) {
     const rules2 = this.repository.listByTrigger({ pluginId: payload.pluginId, triggerId: payload.triggerId });
@@ -18677,7 +18725,8 @@ const registerPluginBridge = (pluginManager2) => {
       version: plugin.manifest.version,
       author: plugin.manifest.author,
       triggers: plugin.triggers,
-      actions: plugin.actions
+      actions: plugin.actions,
+      hasConfigSchema: Boolean(plugin.configSchema)
     }));
   });
   ipcMain2.handle("plugins:get", (_event, pluginId) => {
@@ -18686,7 +18735,8 @@ const registerPluginBridge = (pluginManager2) => {
     return {
       manifest: plugin.manifest,
       triggers: plugin.triggers,
-      actions: plugin.actions
+      actions: plugin.actions,
+      configSchema: plugin.configSchema
     };
   });
   ipcMain2.handle("plugins:execute-action", async (_event, payload) => {
@@ -18694,8 +18744,22 @@ const registerPluginBridge = (pluginManager2) => {
     await pluginManager2.executeAction(pluginId, actionId, params);
     return { status: "ok" };
   });
+  ipcMain2.handle("plugins:statuses", () => {
+    return pluginManager2.listStatuses().map(({ pluginId, status }) => ({
+      pluginId,
+      status
+    }));
+  });
+  ipcMain2.handle("plugins:get-config", (_event, pluginId) => {
+    return pluginManager2.getConfig(pluginId);
+  });
+  ipcMain2.handle("plugins:save-config", (_event, payload) => {
+    const { pluginId, config } = payload;
+    const snapshot = pluginManager2.updateConfig(pluginId, config);
+    return { status: "ok", config: snapshot };
+  });
 };
-const registerEventBridge = (window, eventBus2) => {
+const registerEventBridge = (window, eventBus2, getPluginStatuses) => {
   const unsubscribe = eventBus2.onPluginTrigger((payload) => {
     if (!window.isDestroyed()) {
       window.webContents.send("events:plugin-trigger", payload);
@@ -18706,19 +18770,32 @@ const registerEventBridge = (window, eventBus2) => {
       window.webContents.send("events:log-entry", entry);
     }
   });
+  const unsubscribeStatus = eventBus2.onPluginStatus((payload) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send("events:plugin-status", payload);
+    }
+  });
   const sendInitialLog = () => {
     if (!window.isDestroyed()) {
       window.webContents.send("events:log-bootstrap", eventBus2.getRecentLogEntries(50));
     }
   };
+  const sendInitialStatuses = () => {
+    if (!window.isDestroyed() && getPluginStatuses) {
+      window.webContents.send("events:plugin-status-bootstrap", getPluginStatuses());
+    }
+  };
   if (window.webContents.isLoading()) {
     window.webContents.once("did-finish-load", sendInitialLog);
+    window.webContents.once("did-finish-load", sendInitialStatuses);
   } else {
     sendInitialLog();
+    sendInitialStatuses();
   }
   window.on("closed", () => {
     unsubscribe();
     unsubscribeLog();
+    unsubscribeStatus();
   });
 };
 const registerRuleBridge = (ruleEngine2) => {
@@ -18729,6 +18806,10 @@ const registerRuleBridge = (ruleEngine2) => {
   ipcMain2.handle("rules:delete", (_event, ruleId) => {
     ruleEngine2.deleteRule(ruleId);
     return { status: "ok" };
+  });
+  ipcMain2.handle("rules:test", (_event, payload) => {
+    const { rule, data } = payload;
+    return ruleEngine2.testRule(rule, data);
   });
 };
 const require2 = createRequire(import.meta.url);
@@ -18784,7 +18865,7 @@ async function createMainWindow() {
   } else {
     await win.loadFile(join(process.env.APP_ROOT, "dist", "index.html"));
   }
-  registerEventBridge(win, eventBus);
+  registerEventBridge(win, eventBus, () => pluginManager?.listStatuses() ?? []);
   return win;
 }
 function buildMenu() {

@@ -1,0 +1,42 @@
+.plugins-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.plugins-page__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.plugins-page__header h2 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+}
+
+.plugins-page__header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.plugins-page__grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.ghost-button {
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: transparent;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.ghost-button:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}

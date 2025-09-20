@@ -15,6 +15,7 @@ import type {
   PluginManifest,
   PluginModule,
   PluginStatusUpdate,
+  PluginConfigSnapshot,
 } from '../../shared/plugins/types'
 
 export interface PluginManagerOptions {
@@ -30,6 +31,7 @@ export class PluginManager {
   private readonly ajv = new Ajv({ allErrors: true, allowUnionTypes: true })
   private readonly validator: ValidateFunction<PluginManifest>
   private readonly plugins = new Map<string, LoadedPlugin>()
+  private readonly statuses = new Map<string, PluginStatusUpdate>()
 
   constructor(options: PluginManagerOptions, eventBus: EventBus, stores: DataStores, logger = createLogger('PluginManager')) {
     this.options = options
@@ -47,6 +49,40 @@ export class PluginManager {
 
   getPlugin(pluginId: string) {
     return this.plugins.get(pluginId)
+  }
+
+  listStatuses(): Array<{ pluginId: string; status: PluginStatusUpdate }> {
+    return Array.from(this.statuses.entries()).map(([pluginId, status]) => ({ pluginId, status }))
+  }
+
+  getStatus(pluginId: string) {
+    return this.statuses.get(pluginId)
+  }
+
+  getConfig(pluginId: string): PluginConfigSnapshot {
+    const plugin = this.plugins.get(pluginId)
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} is not loaded`)
+    }
+    return this.stores.getPluginConfigSnapshot(pluginId)
+  }
+
+  updateConfig(pluginId: string, update: PluginConfigSnapshot) {
+    const plugin = this.plugins.get(pluginId)
+    if (!plugin) {
+      throw new Error(`Plugin ${pluginId} is not loaded`)
+    }
+
+    if (plugin.instance.validateConfig) {
+      const validation = plugin.instance.validateConfig(update)
+      if (!validation.valid) {
+        throw new Error(`Invalid configuration for plugin ${pluginId}: ${(validation.errors ?? []).join(', ')}`)
+      }
+    }
+
+    this.stores.setPluginConfigSnapshot(pluginId, update)
+    this.logger.info(`Updated configuration for plugin ${pluginId}`)
+    return this.getConfig(pluginId)
   }
 
   async executeAction(pluginId: string, actionId: string, params: unknown) {
@@ -94,6 +130,7 @@ export class PluginManager {
       } catch (error) {
         this.logger.error(`Error while unloading plugin ${pluginId}`, { error })
       }
+      this.statuses.delete(pluginId)
     }
     this.plugins.clear()
   }
@@ -174,12 +211,15 @@ export class PluginManager {
     }
 
     const captureStatus = (status: PluginStatusUpdate) => {
+      const normalized: PluginStatusUpdate = {
+        ...status,
+        at: status.at ?? Date.now(),
+      }
+
+      this.statuses.set(manifest.id, normalized)
       this.eventBus.emitPluginStatus({
         pluginId: manifest.id,
-        status: {
-          ...status,
-          at: status.at ?? Date.now(),
-        },
+        status: normalized,
       })
     }
 
@@ -214,6 +254,7 @@ export class PluginManager {
     await module.initialize?.(context)
     const triggers = module.registerTriggers?.() ?? []
     const actions = module.registerActions?.() ?? []
+    const configSchema = module.getConfigSchema?.()
 
     this.plugins.set(manifest.id, {
       manifest,
@@ -221,10 +262,15 @@ export class PluginManager {
       context,
       triggers,
       actions,
+      configSchema,
     })
 
     await module.startListening?.()
     this.logger.info(`Loaded plugin ${manifest.id}@${manifest.version} from ${basename(directory)}`)
+
+    if (!this.statuses.has(manifest.id)) {
+      captureStatus({ state: 'idle', message: 'Plugin loaded' })
+    }
   }
 
   private validatePluginModule(module: PluginModule, manifest: PluginManifest) {

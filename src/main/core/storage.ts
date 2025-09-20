@@ -5,6 +5,7 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { randomBytes } from 'node:crypto'
 import { join } from 'node:path'
 import type { RuleDefinition } from '../../shared/rules/types'
+import type { PluginConfigSnapshot } from '../../shared/plugins/types'
 
 type RuleRow = {
   id: string
@@ -246,6 +247,16 @@ export class DataStores {
       this.pluginConfigs.set(pluginId, store)
     }
     return store
+  }
+
+  getPluginConfigSnapshot(pluginId: string): PluginConfigSnapshot {
+    const store = this.getPluginConfig(pluginId)
+    return { ...store.store }
+  }
+
+  setPluginConfigSnapshot(pluginId: string, snapshot: PluginConfigSnapshot) {
+    const store = this.getPluginConfig(pluginId)
+    store.store = { ...snapshot }
   }
 
   getPluginSecrets(pluginId: string) {

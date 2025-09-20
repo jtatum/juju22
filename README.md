@@ -65,4 +65,4 @@ aidle/
 - Events emitted by plugins flow through a typed EventBus to the renderer via IPC, enabling live monitoring.
 - Settings and rule data are stored under the user’s Electron `appData` directory inside the `data/` subfolder.
 
-Refer to `docs/phase-1.md` for the Phase 1 foundation and `docs/phase-2.md` for the latest automation features.
+Refer to `docs/phase-1.md` for the Phase 1 foundation, `docs/phase-2.md` for the automation engine, `docs/phase-3.md` for service integrations, and `docs/phase-4.md` for the new GUI experience.

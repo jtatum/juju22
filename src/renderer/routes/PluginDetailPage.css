@@ -1,0 +1,68 @@
+.plugin-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.plugin-detail header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.plugin-detail header h2 {
+  margin: 12px 0 6px;
+  font-size: 1.8rem;
+}
+
+.plugin-detail header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.plugin-detail .plugin-meta a {
+  color: #60a5fa;
+}
+
+.plugin-detail__grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.plugin-detail__grid ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plugin-detail__grid li {
+  padding: 12px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plugin-detail__grid li strong {
+  color: #f8fafc;
+}
+
+.plugin-detail__grid li span {
+  color: rgba(148, 163, 184, 0.85);
+  font-size: 0.85rem;
+}
+
+.ghost-button {
+  border: none;
+  background: transparent;
+  color: #60a5fa;
+  font-weight: 600;
+  cursor: pointer;
+}

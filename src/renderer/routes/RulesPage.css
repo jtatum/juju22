@@ -1,0 +1,30 @@
+.rules-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rules-page header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.rules-page header h2 {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+}
+
+.rules-page header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.empty-state {
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  color: rgba(148, 163, 184, 0.9);
+}

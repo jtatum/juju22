@@ -1,0 +1,53 @@
+.events-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.events-page header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.events-page header h2 {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+}
+
+.events-page header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.events-page__controls {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+}
+
+select {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  color: #f8fafc;
+  padding: 8px 14px;
+}
+
+.ghost-button {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: transparent;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.empty-state {
+  padding: 18px 20px;
+  border-radius: 14px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.45);
+  color: rgba(148, 163, 184, 0.9);
+}

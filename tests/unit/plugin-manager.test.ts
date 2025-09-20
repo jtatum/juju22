@@ -78,6 +78,12 @@ describe('PluginManager', () => {
       expect(loaded).toBeDefined()
       expect(loaded?.triggers).toHaveLength(1)
       expect(loaded?.actions).toHaveLength(1)
+      expect(manager.getStatus('demo-plugin')).toBeDefined()
+      const configSnapshot = manager.getConfig('demo-plugin')
+      expect(configSnapshot).toBeTypeOf('object')
+
+      const updated = manager.updateConfig('demo-plugin', { foo: 'bar' })
+      expect(updated.foo).toBe('bar')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

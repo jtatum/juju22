@@ -94,6 +94,7 @@ export interface PluginSummary {
   author: string
   triggers: TriggerDefinition[]
   actions: ActionDefinition[]
+  hasConfigSchema?: boolean
 }
 
 export interface PluginModule {
@@ -115,4 +116,7 @@ export interface LoadedPlugin {
   context: PluginContext
   triggers: TriggerDefinition[]
   actions: ActionDefinition[]
+  configSchema?: JSONSchemaType<unknown> | Record<string, unknown>
 }
+
+export type PluginConfigSnapshot = Record<string, unknown>

@@ -15,4 +15,9 @@ export const registerRuleBridge = (ruleEngine: RuleEngine) => {
     ruleEngine.deleteRule(ruleId)
     return { status: 'ok' }
   })
+
+  ipcMain.handle('rules:test', (_event, payload: { rule: RuleDefinition; data: unknown }) => {
+    const { rule, data } = payload
+    return ruleEngine.testRule(rule, data)
+  })
 }

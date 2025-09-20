@@ -1,0 +1,161 @@
+.rule-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.rule-editor header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.rule-editor header h2 {
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+}
+
+.rule-editor header p {
+  margin: 0;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.rule-editor__section {
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.field-grid label,
+.condition-item label,
+.action-item__grid label,
+.full-row,
+.checkbox {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: rgba(226, 232, 240, 0.95);
+}
+
+label span {
+  font-weight: 600;
+}
+
+input,
+select,
+textarea {
+  background: rgba(15, 23, 42, 0.75);
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #f8fafc;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+}
+
+textarea {
+  min-height: 120px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.85rem;
+}
+
+.full-row {
+  width: 100%;
+}
+
+.checkbox {
+  flex-direction: row;
+  align-items: center;
+}
+
+.checkbox input {
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.condition-list,
+.action-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.condition-item,
+.action-item {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-item__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.action-item__controls {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.muted {
+  color: rgba(148, 163, 184, 0.75);
+}
+
+.test-area {
+  min-height: 160px;
+}
+
+.test-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.test-result {
+  font-weight: 600;
+  color: #60a5fa;
+}
+
+.error-text {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.rule-editor__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ghost-button {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: transparent;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.ghost-button:hover {
+  border-color: rgba(96, 165, 250, 0.65);
+}
