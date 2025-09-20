@@ -2,7 +2,7 @@
 
 ## Overview
 
-Phase 6 introduces critical performance monitoring, error handling, and reliability features to ensure Aidle runs smoothly and provides excellent user experience.
+Phase 6 introduces critical performance monitoring, error handling, and reliability features to ensure Juju22 runs smoothly and provides excellent user experience.
 
 ## Performance Monitoring
 

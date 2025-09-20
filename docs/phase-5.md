@@ -1,4 +1,4 @@
-# Aidle – Phase 5 Advanced Features
+# Juju22 – Phase 5 Advanced Features
 
 Phase 5 introduces stateful automation primitives on top of the runtime and GUI delivered in earlier phases. This milestone adds a variable service with interpolation, a richer action graph (branches, loops, random selectors, scripts), and a documented plugin authoring workflow.
 
@@ -13,7 +13,7 @@ Phase 5 introduces stateful automation primitives on top of the runtime and GUI 
   - `variable` actions set, increment, or reset scoped variables without writing scripts.
   - `script` actions execute sandboxed VM snippets with access to scoped variables and helper utilities.
 - **Renderer updates** – The rule editor exposes an action type selector, dedicated editors for plugin/variable/script actions, and JSON editors for complex flows. A new Variables surface lists scoped state, handles inline mutations, and refreshes via `variables.mutated` events. Event feeds label variable mutations alongside rule evaluations.
-- **Plugin authoring** – A workspace-scoped `@aidle/plugin-sdk` package re-exports the runtime types, a starter template lives under `templates/plugin-basic`, and the `scripts/create-plugin.mjs` helper scaffolds new plugins into `plugins-external/`.
+- **Plugin authoring** – A workspace-scoped `@juju22/plugin-sdk` package re-exports the runtime types, a starter template lives under `templates/plugin-basic`, and the `scripts/create-plugin.mjs` helper scaffolds new plugins into `plugins-external/`.
 - **Testing** – Fresh unit coverage verifies branch dispatch, loop counter increments, and script execution within the sandbox. Existing tests exercise action dispatch failure paths.
 
 ## Runtime Updates

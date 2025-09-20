@@ -27,7 +27,7 @@ export const useVariableStore = create<VariableState>((set, get) => ({
   async fetch(scope, ownerId) {
     set({ loading: true, error: null })
     try {
-      const items = await window.aidle.variables.list(scope, ownerId)
+      const items = await window.juju22.variables.list(scope, ownerId)
       set({ items, lastQuery: { scope, ownerId } })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
@@ -36,7 +36,7 @@ export const useVariableStore = create<VariableState>((set, get) => ({
     }
   },
   async setValue(scope, key, value, ownerId) {
-    const record = await window.aidle.variables.set(scope, key, value, ownerId)
+    const record = await window.juju22.variables.set(scope, key, value, ownerId)
     const { lastQuery } = get()
     if (lastQuery && lastQuery.scope === scope && lastQuery.ownerId === ownerId) {
       set((state) => ({
@@ -46,7 +46,7 @@ export const useVariableStore = create<VariableState>((set, get) => ({
     return record
   },
   async increment(scope, key, amount = 1, ownerId) {
-    const record = await window.aidle.variables.increment(scope, key, amount, ownerId)
+    const record = await window.juju22.variables.increment(scope, key, amount, ownerId)
     const { lastQuery } = get()
     if (lastQuery && lastQuery.scope === scope && lastQuery.ownerId === ownerId) {
       set((state) => ({
@@ -56,7 +56,7 @@ export const useVariableStore = create<VariableState>((set, get) => ({
     return record
   },
   async reset(scope, key, ownerId) {
-    await window.aidle.variables.reset(scope, key, ownerId)
+    await window.juju22.variables.reset(scope, key, ownerId)
     const { lastQuery } = get()
     if (lastQuery && lastQuery.scope === scope && lastQuery.ownerId === ownerId) {
       set((state) => ({
@@ -64,7 +64,7 @@ export const useVariableStore = create<VariableState>((set, get) => ({
       }))
     }
   },
-  snapshot: (ruleId, pluginId) => window.aidle.variables.snapshot(ruleId, pluginId),
+  snapshot: (ruleId, pluginId) => window.juju22.variables.snapshot(ruleId, pluginId),
   applyMutation(mutation) {
     const { lastQuery } = get()
     if (!lastQuery || lastQuery.scope !== mutation.key.scope || lastQuery.ownerId !== mutation.key.ownerId) {

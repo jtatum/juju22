@@ -21,7 +21,7 @@ export interface RuleErrorEvent {
   occurredAt: number
 }
 
-export type AidleEvent =
+export type Juju22Event =
   | { type: 'plugin.trigger'; payload: PluginEventPayload }
   | { type: 'plugin.status'; payload: PluginStatusPayload }
   | { type: 'rule.evaluation'; payload: RuleEvaluationEvent }
@@ -32,7 +32,7 @@ export type AidleEvent =
   | SystemEvent
 
 export interface EventLogEntry {
-  type: AidleEvent['type']
-  payload: AidleEvent['payload']
+  type: Juju22Event['type']
+  payload: Juju22Event['payload']
   timestamp: number
 }

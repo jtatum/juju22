@@ -25,7 +25,7 @@ export const usePluginStore = create<PluginState>((set, get) => ({
     if (get().loading) return
     set({ loading: true, error: null })
     try {
-      const plugins = await window.aidle.plugins.list()
+      const plugins = await window.juju22.plugins.list()
       set({ plugins })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
@@ -35,7 +35,7 @@ export const usePluginStore = create<PluginState>((set, get) => ({
   },
   async refreshStatuses() {
     try {
-      const statuses = await window.aidle.plugins.listStatuses()
+      const statuses = await window.juju22.plugins.listStatuses()
       set((state) => {
         const next = { ...state.statuses }
         for (const entry of statuses) {
@@ -65,12 +65,12 @@ export const usePluginStore = create<PluginState>((set, get) => ({
       return cached
     }
 
-    const config = await window.aidle.plugins.getConfig(pluginId)
+    const config = await window.juju22.plugins.getConfig(pluginId)
     set((state) => ({ configs: { ...state.configs, [pluginId]: config } }))
     return config
   },
   async saveConfig(pluginId, config) {
-    const response = await window.aidle.plugins.saveConfig(pluginId, config)
+    const response = await window.juju22.plugins.saveConfig(pluginId, config)
     set((state) => ({ configs: { ...state.configs, [pluginId]: response.config } }))
     return response.config
   },

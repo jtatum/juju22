@@ -1,6 +1,6 @@
-# Aidle
+# Juju22
 
-Aidle is a cross-platform automation and integration platform for content creators. The project pairs an Electron main process with a React renderer and a plugin-first automation engine.
+Juju22 is a cross-platform automation and integration platform for content creators. The project pairs an Electron main process with a React renderer and a plugin-first automation engine.
 
 ## Phase 1 Deliverables
 
@@ -57,7 +57,7 @@ npm run dev
 ## Project Structure
 
 ```
-aidle/
+juju22/
 ├── electron/           # Electron entrypoints
 ├── src/
 │   ├── main/           # Core application engine (plugin manager, storage, ipc)

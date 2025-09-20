@@ -77,7 +77,7 @@ export class ImportExportManager {
         rules,
         metadata: {
           ruleCount: rules.length,
-          exportedBy: 'Aidle',
+          exportedBy: 'Juju22',
         },
       }
 

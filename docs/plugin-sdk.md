@@ -1,6 +1,6 @@
-# Aidle Plugin SDK Guide
+# Juju22 Plugin SDK Guide
 
-This document describes how to build and test local plugins against the Aidle runtime introduced in Phase 5.
+This document describes how to build and test local plugins against the Juju22 runtime introduced in Phase 5.
 
 ## Getting Started
 
@@ -19,9 +19,9 @@ This document describes how to build and test local plugins against the Aidle ru
 
    The script copies the template in `templates/plugin-basic/`, updates the manifest, and prints the target path.
 
-3. Edit the generated `index.js`. The file is typed via `@aidle/plugin-sdk`, which re-exports the runtime interfaces (`PluginModule`, `PluginContext`, `TriggerDefinition`, etc.).
+3. Edit the generated `index.js`. The file is typed via `@juju22/plugin-sdk`, which re-exports the runtime interfaces (`PluginModule`, `PluginContext`, `TriggerDefinition`, etc.).
 
-4. Restart the running Aidle instance or, while in dev mode, toggle the plugin via the renderer to reload it. Phase 5 still requires a manual reload; hot-module support is tracked for Phase 6.
+4. Restart the running Juju22 instance or, while in dev mode, toggle the plugin via the renderer to reload it. Phase 5 still requires a manual reload; hot-module support is tracked for Phase 6.
 
 ## Error Handling
 
@@ -36,7 +36,7 @@ This will:
 - Log the technical error details for debugging
 - Show a toast notification to the user with your custom message
 - Provide automatic recovery suggestions based on the error type
-- Integrate with Aidle's circuit breaker and retry mechanisms
+- Integrate with Juju22's circuit breaker and retry mechanisms
 
 Example usage:
 ```javascript
@@ -74,7 +74,7 @@ Script actions execute inside a locked-down Node `vm`. The sandbox includes:
 - `context` – the same object passed to actions
 - `variables` – scoped adapters with `get`, `set`, `increment`, `reset`
 - `helpers.setLocal(name, value)` – store ad-hoc values for later actions in the same rule
-- `console` – proxied to the Aidle logger
+- `console` – proxied to the Juju22 logger
 
 Scripts should be synchronous and must complete within the configured timeout (defaults to `1000ms`).
 

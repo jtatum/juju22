@@ -23,5 +23,5 @@ declare namespace NodeJS {
 
 // Used in Renderer process, expose in `preload.ts`
 interface Window {
-  aidle: import('./preload').AidleBridge
+  juju22: import('./preload').Juju22Bridge
 }

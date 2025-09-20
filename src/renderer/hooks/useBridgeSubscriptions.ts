@@ -16,28 +16,28 @@ export const useBridgeSubscriptions = () => {
     void usePluginStore.getState().fetchPlugins()
     void usePluginStore.getState().refreshStatuses()
 
-    const unsubscribeStatus = window.aidle.events.onPluginStatus((payload) => {
+    const unsubscribeStatus = window.juju22.events.onPluginStatus((payload) => {
       applyStatus(payload)
     })
 
-    const unsubscribeStatusBootstrap = window.aidle.events.onPluginStatusBootstrap((entries) => {
+    const unsubscribeStatusBootstrap = window.juju22.events.onPluginStatusBootstrap((entries) => {
       applyStatusBootstrap(entries)
     })
 
-    const unsubscribeLogBootstrap = window.aidle.events.onLogBootstrap((entries) => {
+    const unsubscribeLogBootstrap = window.juju22.events.onLogBootstrap((entries) => {
       bootstrapEvents(entries)
     })
 
-    const unsubscribeLog = window.aidle.events.onLogEntry((entry) => {
+    const unsubscribeLog = window.juju22.events.onLogEntry((entry) => {
       addEvent(entry)
     })
 
-    const unsubscribeVariable = window.aidle.events.onVariableMutation((mutation) => {
+    const unsubscribeVariable = window.juju22.events.onVariableMutation((mutation) => {
       applyVariableMutation(mutation)
     })
 
     // Subscribe to error events
-    const unsubscribeError = window.aidle.events.onError((error) => {
+    const unsubscribeError = window.juju22.events.onError((error) => {
       addNotification({
         type: 'error',
         title: error.userMessage || 'Error',
@@ -46,7 +46,7 @@ export const useBridgeSubscriptions = () => {
       })
     })
 
-    const unsubscribeErrorRecovered = window.aidle.events.onErrorRecovered((recovery) => {
+    const unsubscribeErrorRecovered = window.juju22.events.onErrorRecovered((recovery) => {
       addNotification({
         type: 'success',
         title: 'Issue Resolved',
@@ -54,7 +54,7 @@ export const useBridgeSubscriptions = () => {
       })
     })
 
-    const unsubscribeCircuitOpened = window.aidle.events.onCircuitOpened((circuit) => {
+    const unsubscribeCircuitOpened = window.juju22.events.onCircuitOpened((circuit) => {
       addNotification({
         type: 'warning',
         title: 'Service Unavailable',
@@ -63,7 +63,7 @@ export const useBridgeSubscriptions = () => {
       })
     })
 
-    const unsubscribeCircuitClosed = window.aidle.events.onCircuitClosed((circuit) => {
+    const unsubscribeCircuitClosed = window.juju22.events.onCircuitClosed((circuit) => {
       addNotification({
         type: 'info',
         title: 'Service Restored',

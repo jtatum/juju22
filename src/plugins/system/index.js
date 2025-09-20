@@ -267,7 +267,7 @@ class WebhookServer {
       const bodyString = bodyBuffer.toString('utf-8')
 
       if (this.secret) {
-        const provided = req.headers['x-aidle-signature'] || req.headers['x-aidle-token']
+        const provided = req.headers['x-juju22-signature'] || req.headers['x-juju22-token']
         if (!provided || provided !== this.secret) {
           res.writeHead(401).end('Unauthorized')
           return
@@ -427,7 +427,7 @@ module.exports = {
   async executeAction(actionId, params = {}) {
     switch (actionId) {
       case 'notification.send': {
-        const { title = 'Aidle', message, level = 'info' } = params
+        const { title = 'Juju22', message, level = 'info' } = params
         pluginContext.logger.info('Notification requested', { title, message, level })
         break
       }

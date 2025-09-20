@@ -26,7 +26,7 @@ export const RulesPage = () => {
   const handleExport = async () => {
     try {
       setIsExporting(true)
-      const result = await window.aidle.importExport.exportRules()
+      const result = await window.juju22.importExport.exportRules()
       if (result.success) {
         addNotification({
           type: 'success',
@@ -48,7 +48,7 @@ export const RulesPage = () => {
   const handleImport = async () => {
     try {
       setIsImporting(true)
-      const result = await window.aidle.importExport.importRules()
+      const result = await window.juju22.importExport.importRules()
       if (result.success) {
         await fetchRules() // Refresh the rules list
         addNotification({

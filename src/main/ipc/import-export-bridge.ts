@@ -35,7 +35,7 @@ export class ImportExportBridge {
         // Show save dialog first
         const result = await dialog.showSaveDialog({
           title: 'Export Rules',
-          defaultPath: `aidle-rules-${Date.now()}.json`,
+          defaultPath: `juju22-rules-${Date.now()}.json`,
           filters: [
             { name: 'JSON Files', extensions: ['json'] },
             { name: 'All Files', extensions: ['*'] }

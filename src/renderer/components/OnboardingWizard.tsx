@@ -48,10 +48,10 @@ export const OnboardingWizard = ({ onComplete, onSkip }: OnboardingWizardProps) 
   const handleComplete = async () => {
     try {
       // Mark onboarding as complete in settings
-      await window.aidle.settings.set('onboardingComplete', true)
+      await window.juju22.settings.set('onboardingComplete', true)
       addNotification({
         type: 'success',
-        title: 'Welcome to Aidle!',
+        title: 'Welcome to Juju22!',
         message: 'You can always access help from the Settings page.',
       })
       onComplete()
@@ -63,7 +63,7 @@ export const OnboardingWizard = ({ onComplete, onSkip }: OnboardingWizardProps) 
 
   const handleSkip = async () => {
     try {
-      await window.aidle.settings.set('onboardingComplete', true)
+      await window.juju22.settings.set('onboardingComplete', true)
       onSkip()
     } catch {
       // Still skip even if saving fails
@@ -91,7 +91,7 @@ export const OnboardingWizard = ({ onComplete, onSkip }: OnboardingWizardProps) 
             pluginId: 'system',
             actionId: 'notification',
             config: {
-              title: 'Hello from Aidle!',
+              title: 'Hello from Juju22!',
               message: 'Your automation is working!'
             }
           }
@@ -99,7 +99,7 @@ export const OnboardingWizard = ({ onComplete, onSkip }: OnboardingWizardProps) 
         priority: 0
       }
 
-      await window.aidle.rules.save(sampleRule)
+      await window.juju22.rules.save(sampleRule)
       setSampleRuleCreated(true)
       addNotification({
         type: 'success',
@@ -120,10 +120,10 @@ export const OnboardingWizard = ({ onComplete, onSkip }: OnboardingWizardProps) 
       case 'welcome':
         return (
           <div className="onboarding-step">
-            <h2>Welcome to Aidle</h2>
+            <h2>Welcome to Juju22</h2>
             <div className="onboarding-icon">🤖</div>
             <p>
-              Aidle is your personal automation platform for content creation.
+              Juju22 is your personal automation platform for content creation.
               Connect services, create rules, and let automation handle the repetitive tasks.
             </p>
             <ul className="feature-list">
@@ -141,7 +141,7 @@ export const OnboardingWizard = ({ onComplete, onSkip }: OnboardingWizardProps) 
             <h2>Plugins Power Your Automations</h2>
             <div className="onboarding-icon">🔌</div>
             <p>
-              Plugins connect Aidle to external services and provide triggers and actions
+              Plugins connect Juju22 to external services and provide triggers and actions
               for your automation rules.
             </p>
             <div className="plugin-examples">
@@ -198,7 +198,7 @@ export const OnboardingWizard = ({ onComplete, onSkip }: OnboardingWizardProps) 
             <h2>You're All Set!</h2>
             <div className="onboarding-icon">🎉</div>
             <p>
-              You're ready to start automating with Aidle. Here are some things you can do next:
+              You're ready to start automating with Juju22. Here are some things you can do next:
             </p>
             <ul className="next-steps">
               <li>Configure your plugins with API keys and settings</li>

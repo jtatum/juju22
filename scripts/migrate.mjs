@@ -146,7 +146,7 @@ class StandaloneMigrationRunner {
 }
 
 function getDataDirectory() {
-  const appName = 'aidle'
+  const appName = 'juju22'
   let dataDir
 
   switch (process.platform) {
@@ -180,7 +180,7 @@ async function main() {
     process.exit(1)
   }
 
-  const dbPath = join(getDataDirectory(), 'aidle.db')
+  const dbPath = join(getDataDirectory(), 'juju22.db')
   console.log(`Using database: ${dbPath}\n`)
 
   const runner = new StandaloneMigrationRunner(dbPath)

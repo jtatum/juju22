@@ -18,7 +18,7 @@ const setupPlugin = (root: string) => {
         id: 'event-plugin',
         name: 'Event Plugin',
         version: '0.0.1',
-        author: 'Aidle',
+        author: 'Juju22',
         main: 'index.js',
         triggers: [{ id: 'event.trigger', name: 'Event Trigger' }],
         actions: [{ id: 'event.emit', name: 'Emit Event' }],
@@ -50,7 +50,7 @@ module.exports = {
 
 describe('Plugin event flow', () => {
   it('emits trigger events through the event bus', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'aidle-event-plugin-'))
+    const root = mkdtempSync(join(tmpdir(), 'juju22-event-plugin-'))
     const externalDir = join(root, 'external')
     mkdirSync(externalDir, { recursive: true })
     setupPlugin(root)

@@ -11,7 +11,7 @@ import { MigrationRunner } from './migrations/migration-runner'
 import { allMigrations } from './migrations/migrations'
 import type { EventBus } from './event-bus'
 
-const DATABASE_FILENAME = 'aidle.db'
+const DATABASE_FILENAME = 'juju22.db'
 
 type RuleRow = {
   id: string

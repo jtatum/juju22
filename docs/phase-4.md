@@ -1,6 +1,6 @@
-# Aidle – Phase 4 GUI Development
+# Juju22 – Phase 4 GUI Development
 
-Phase 4 delivers the first full-featured desktop GUI for Aidle, building on the automation runtime introduced in earlier milestones. The renderer now ships a multi-surface experience for managing plugins, configuring credentials, constructing automations, and inspecting live telemetry.
+Phase 4 delivers the first full-featured desktop GUI for Juju22, building on the automation runtime introduced in earlier milestones. The renderer now ships a multi-surface experience for managing plugins, configuring credentials, constructing automations, and inspecting live telemetry.
 
 ## Highlights
 

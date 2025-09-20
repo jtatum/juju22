@@ -80,7 +80,7 @@ async function createMainWindow() {
     minWidth: 1024,
     minHeight: 640,
     show: false,
-    title: 'Aidle',
+    title: 'Juju22',
     backgroundColor: '#0f172a',
     webPreferences: {
       preload: join(__dirname, 'preload.cjs'),
@@ -179,7 +179,7 @@ function buildMenu() {
           label: 'Learn More',
           click: async () => {
             const { shell } = require('electron')
-            await shell.openExternal('https://aidle.app')
+            await shell.openExternal('https://juju22.app')
           },
         },
       ],

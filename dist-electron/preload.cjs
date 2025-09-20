@@ -43,7 +43,7 @@ const variableChannels = {
   reset: "variables:reset",
   snapshot: "variables:snapshot"
 };
-const aidleBridge = {
+const juju22Bridge = {
   plugins: {
     list: () => ipcRenderer.invoke(pluginChannels.list),
     get: (pluginId) => ipcRenderer.invoke(pluginChannels.get, pluginId),
@@ -167,11 +167,11 @@ const aidleBridge = {
   invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)
 };
 try {
-  console.log("[PRELOAD] About to expose aidle bridge to window...");
-  contextBridge.exposeInMainWorld("aidle", aidleBridge);
-  console.log("[PRELOAD] Successfully exposed aidle bridge!");
+  console.log("[PRELOAD] About to expose juju22 bridge to window...");
+  contextBridge.exposeInMainWorld("juju22", juju22Bridge);
+  console.log("[PRELOAD] Successfully exposed juju22 bridge!");
 } catch (err) {
-  console.error("[PRELOAD] Failed to expose aidle bridge:", err);
+  console.error("[PRELOAD] Failed to expose juju22 bridge:", err);
   throw err;
 }
 console.log("[PRELOAD] Preload script completed successfully!");

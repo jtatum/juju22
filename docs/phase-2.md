@@ -1,4 +1,4 @@
-# Aidle – Phase 2 Automation Upgrade
+# Juju22 – Phase 2 Automation Upgrade
 
 Phase 2 layers automation and integrations on top of the Phase 1 foundation. The focus areas are the rule engine, richer observability, and first-party plugin scaffolds for upcoming service integrations.
 
@@ -46,4 +46,4 @@ Phase 2 layers automation and integrations on top of the Phase 1 foundation. The
 - Persist event logs for historical inspection and debugging beyond the in-memory buffer.
 - Harden the plugin sandbox for network-bound integrations and add OAuth token storage helpers for Twitch.
 
-Phase 2 primes Aidle for service integrations and richer automations, paving the way for the visual rule builder and production-ready plugin catalog in subsequent phases.
+Phase 2 primes Juju22 for service integrations and richer automations, paving the way for the visual rule builder and production-ready plugin catalog in subsequent phases.

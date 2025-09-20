@@ -69,7 +69,7 @@ type PluginDetails = {
   configSchema?: JSONSchemaType<unknown> | Record<string, unknown>
 }
 
-const aidleBridge = {
+const juju22Bridge = {
   plugins: {
     list: () => ipcRenderer.invoke(pluginChannels.list) as Promise<PluginSummary[]>,
     get: (pluginId: string) =>
@@ -229,20 +229,20 @@ const aidleBridge = {
 }
 
 try {
-  console.log('[PRELOAD] About to expose aidle bridge to window...')
-  contextBridge.exposeInMainWorld('aidle', aidleBridge)
-  console.log('[PRELOAD] Successfully exposed aidle bridge!')
+  console.log('[PRELOAD] About to expose juju22 bridge to window...')
+  contextBridge.exposeInMainWorld('juju22', juju22Bridge)
+  console.log('[PRELOAD] Successfully exposed juju22 bridge!')
 } catch (err) {
-  console.error('[PRELOAD] Failed to expose aidle bridge:', err)
+  console.error('[PRELOAD] Failed to expose juju22 bridge:', err)
   throw err
 }
 
 console.log('[PRELOAD] Preload script completed successfully!')
 
-export type AidleBridge = typeof aidleBridge
+export type Juju22Bridge = typeof juju22Bridge
 
 declare global {
   interface Window {
-    aidle: AidleBridge
+    juju22: Juju22Bridge
   }
 }

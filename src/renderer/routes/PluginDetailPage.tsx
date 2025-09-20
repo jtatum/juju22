@@ -41,7 +41,7 @@ export const PluginDetailPage = () => {
     const fetchDetails = async () => {
       setLoading(true)
       try {
-        const pluginDetails = await window.aidle.plugins.get(pluginId)
+        const pluginDetails = await window.juju22.plugins.get(pluginId)
         if (!pluginDetails) {
           navigate('/plugins')
           return

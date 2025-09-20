@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterAll } from 'vitest'
 import { app } from './mocks/electron'
 
-const tempUserData = mkdtempSync(join(tmpdir(), 'aidle-test-'))
+const tempUserData = mkdtempSync(join(tmpdir(), 'juju22-test-'))
 
 app.getPath.mockReturnValue(tempUserData)
 

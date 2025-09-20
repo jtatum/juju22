@@ -20,7 +20,7 @@ export const Layout = () => {
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
-        <h1 className="app-title">Aidle</h1>
+        <h1 className="app-title">Juju22</h1>
         <nav>
           {navItems.map((item) => (
             <NavLink

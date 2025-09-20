@@ -2,7 +2,7 @@
   "id": "obs",
   "name": "OBS Studio",
   "version": "0.2.0",
-  "author": "Aidle",
+  "author": "Juju22",
   "description": "Streams scene and streaming state changes from OBS Studio and exposes high-level control actions.",
   "main": "index.js",
   "triggers": [

@@ -6,9 +6,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { PluginManager } from '@main/core/plugin-manager'
 import { EventBus } from '@main/core/event-bus'
 import { DataStores } from '@main/core/storage'
-import { ErrorReporter } from '@main/core/error-reporter'
-import { RetryManager } from '@main/core/retry-manager'
-import { CircuitBreaker } from '@main/core/circuit-breaker'
 import type { Logger } from '@main/core/logger'
 
 const createMockLogger = (): Logger =>
@@ -30,7 +27,7 @@ const createTestPlugin = (
     id: 'demo-plugin',
     name: 'Demo Plugin',
     version: '0.0.1',
-    author: 'Aidle',
+    author: 'Juju22',
     main: 'index.js',
     triggers: [{ id: 'demo.trigger', name: 'Demo Trigger' }],
     actions: [{ id: 'demo.action', name: 'Demo Action' }],
@@ -60,7 +57,7 @@ module.exports = {
 
 describe('PluginManager', () => {
   it('loads plugins from filesystem', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'aidle-plugin-'))
+    const root = mkdtempSync(join(tmpdir(), 'juju22-plugin-'))
     const externalDir = join(root, 'external')
     mkdirSync(externalDir, { recursive: true })
     createTestPlugin(root)
@@ -93,7 +90,7 @@ describe('PluginManager', () => {
   })
 
   it('throws on invalid plugin manifest', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'aidle-plugin-invalid-'))
+    const root = mkdtempSync(join(tmpdir(), 'juju22-plugin-invalid-'))
     const externalDir = join(root, 'external')
     mkdirSync(externalDir, { recursive: true })
     createTestPlugin(root, { version: 'not-a-semver' })
@@ -116,11 +113,10 @@ describe('PluginManager', () => {
   })
 
   it('reports plugin errors through emitError', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'aidle-plugin-error-'))
+    const root = mkdtempSync(join(tmpdir(), 'juju22-plugin-error-'))
     const externalDir = join(root, 'external')
     mkdirSync(externalDir, { recursive: true })
 
-    let capturedEmitError: ((error: unknown, customMessage?: string) => void) | null = null
 
     const moduleBody = `const manifest = require('./manifest.json')
 
@@ -185,7 +181,7 @@ module.exports = {
   })
 
   it('allows manifest dependencies inside sandboxed plugins', async () => {
-    const root = mkdtempSync(join(process.cwd(), 'aidle-plugin-deps-'))
+    const root = mkdtempSync(join(process.cwd(), 'juju22-plugin-deps-'))
     const externalDir = join(root, 'external')
     mkdirSync(externalDir, { recursive: true })
     createTestPlugin(

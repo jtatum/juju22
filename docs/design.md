@@ -1,8 +1,8 @@
-# Aidle - Design Document
+# Juju22 - Design Document
 
 ## Executive Summary
 
-**Aidle** is a cross-platform automation and integration platform for content creators and streamers, inspired by Aitum. It provides a plugin-based architecture that enables users to create sophisticated automation rules by connecting triggers from various sources (Twitch events, OBS scenes, hotkeys, webhooks) to actions across different platforms and services.
+**Juju22** is a cross-platform automation and integration platform for content creators and streamers, inspired by Aitum. It provides a plugin-based architecture that enables users to create sophisticated automation rules by connecting triggers from various sources (Twitch events, OBS scenes, hotkeys, webhooks) to actions across different platforms and services.
 
 The application features a visual rule builder, allowing non-technical users to create complex automation workflows through an intuitive GUI, while also providing a robust plugin SDK for developers to extend functionality.
 
@@ -20,7 +20,7 @@ The application features a visual rule builder, allowing non-technical users to 
 ## Project Overview
 
 ### Vision
-Create the most extensible and user-friendly automation platform for content creators, enabling them to focus on creating content while Aidle handles repetitive tasks and viewer interactions.
+Create the most extensible and user-friendly automation platform for content creators, enabling them to focus on creating content while Juju22 handles repetitive tasks and viewer interactions.
 
 ### Target Users
 - **Primary**: Streamers on Twitch/YouTube/Kick
@@ -152,7 +152,7 @@ interface Plugin {
 ### File Structure
 
 ```
-aidle/
+juju22/
 ├── src/
 │   ├── main/              # Electron main process
 │   │   ├── core/           # Core engine

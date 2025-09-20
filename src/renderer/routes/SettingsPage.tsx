@@ -66,7 +66,7 @@ export const SettingsPage = () => {
 
   const loadBackups = async () => {
     try {
-      const result = await window.aidle.backup.list()
+      const result = await window.juju22.backup.list()
       setBackups(result)
     } catch (error) {
       addNotification({
@@ -79,7 +79,7 @@ export const SettingsPage = () => {
 
   const loadBackupSettings = async () => {
     try {
-      const settings = await window.aidle.backup.getSettings()
+      const settings = await window.juju22.backup.getSettings()
       setBackupSettings(settings)
     } catch (error) {
       console.error('Failed to load backup settings', error)
@@ -89,7 +89,7 @@ export const SettingsPage = () => {
   const handleCreateBackup = async () => {
     try {
       setIsCreatingBackup(true)
-      const result = await window.aidle.backup.create(backupLabel || undefined)
+      const result = await window.juju22.backup.create(backupLabel || undefined)
       if (result.success) {
         addNotification({
           type: 'success',
@@ -117,7 +117,7 @@ export const SettingsPage = () => {
 
     try {
       setIsRestoring(backupId)
-      const result = await window.aidle.backup.restore(backupId)
+      const result = await window.juju22.backup.restore(backupId)
       if (result.success) {
         addNotification({
           type: 'success',
@@ -144,7 +144,7 @@ export const SettingsPage = () => {
     }
 
     try {
-      const result = await window.aidle.backup.delete(backupId)
+      const result = await window.juju22.backup.delete(backupId)
       if (result.success) {
         addNotification({
           type: 'info',
@@ -164,7 +164,7 @@ export const SettingsPage = () => {
 
   const handleUpdateBackupSettings = async () => {
     try {
-      await window.aidle.backup.updateSettings(backupSettings)
+      await window.juju22.backup.updateSettings(backupSettings)
       addNotification({
         type: 'success',
         title: 'Settings Updated',
@@ -194,12 +194,12 @@ export const SettingsPage = () => {
   const loadPerformanceMetrics = async () => {
     try {
       setIsLoadingMetrics(true)
-      const metricsResult = await window.aidle.performance.getMetrics()
+      const metricsResult = await window.juju22.performance.getMetrics()
       if (metricsResult.success) {
         setPerformanceMetrics(metricsResult.data)
       }
 
-      const leaksResult = await window.aidle.performance.detectMemoryLeaks()
+      const leaksResult = await window.juju22.performance.detectMemoryLeaks()
       if (leaksResult.success) {
         setMemoryLeaks(leaksResult.data || [])
       }

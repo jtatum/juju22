@@ -30,7 +30,7 @@ class Logger {
   name;
   level;
   stream = null;
-  constructor(name, level = process.env.AIDLE_LOG_LEVEL ?? "info") {
+  constructor(name, level = process.env.JUJU22_LOG_LEVEL ?? "info") {
     this.name = name;
     this.level = level;
   }
@@ -87,7 +87,7 @@ class Logger {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
-    return join(dir, "aidle.log");
+    return join(dir, "juju22.log");
   }
 }
 const createLogger = (name) => new Logger(name);
@@ -10804,7 +10804,7 @@ const allMigrations = [
   migration$1,
   migration
 ];
-const DATABASE_FILENAME = "aidle.db";
+const DATABASE_FILENAME = "juju22.db";
 const { app: app$1 } = electron;
 const SETTINGS_SCHEMA = {
   theme: {
@@ -19254,7 +19254,7 @@ class ErrorReporter {
   }
 }
 const schema = {
-  $id: "Aidle.PluginManifest",
+  $id: "Juju22.PluginManifest",
   type: "object",
   required: ["id", "name", "version", "author", "main"],
   additionalProperties: false,
@@ -20933,7 +20933,7 @@ class ImportExportManager {
         rules: rules2,
         metadata: {
           ruleCount: rules2.length,
-          exportedBy: "Aidle"
+          exportedBy: "Juju22"
         }
       };
       const content = format2 === "yaml" ? YAML.stringify(exportData, { indent: 2 }) : JSON.stringify(exportData, null, 2);
@@ -21221,7 +21221,7 @@ class BackupManager {
       }
       const timestamp2 = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
       const extension = compress ? ".backup.gz" : ".backup.json";
-      const filename = `aidle-backup-${timestamp2}${extension}`;
+      const filename = `juju22-backup-${timestamp2}${extension}`;
       const filePath = join(this.backupDir, filename);
       let content = JSON.stringify(backupData, null, 2);
       if (compress) {
@@ -21508,7 +21508,7 @@ class ImportExportBridge {
       try {
         const result = await dialog.showSaveDialog({
           title: "Export Rules",
-          defaultPath: `aidle-rules-${Date.now()}.json`,
+          defaultPath: `juju22-rules-${Date.now()}.json`,
           filters: [
             { name: "JSON Files", extensions: ["json"] },
             { name: "All Files", extensions: ["*"] }
@@ -21738,7 +21738,7 @@ async function createMainWindow() {
     minWidth: 1024,
     minHeight: 640,
     show: false,
-    title: "Aidle",
+    title: "Juju22",
     backgroundColor: "#0f172a",
     webPreferences: {
       preload: join(__dirname, "preload.cjs"),
@@ -21827,7 +21827,7 @@ function buildMenu() {
           label: "Learn More",
           click: async () => {
             const { shell: shell2 } = require2("electron");
-            await shell2.openExternal("https://aidle.app");
+            await shell2.openExternal("https://juju22.app");
           }
         }
       ]

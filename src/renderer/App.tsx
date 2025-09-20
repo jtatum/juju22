@@ -22,7 +22,7 @@ function App() {
 
   const checkOnboardingStatus = async () => {
     try {
-      const isComplete = await window.aidle.settings.get('onboardingComplete')
+      const isComplete = await window.juju22.settings.get('onboardingComplete')
       if (!isComplete) {
         setShowOnboarding(true)
       }

@@ -2,7 +2,7 @@ import type { JSONSchemaType } from 'ajv'
 import type { PluginManifest } from './types'
 
 const schema = {
-  $id: 'Aidle.PluginManifest',
+  $id: 'Juju22.PluginManifest',
   type: 'object',
   required: ['id', 'name', 'version', 'author', 'main'],
   additionalProperties: false,

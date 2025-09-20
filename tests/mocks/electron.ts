@@ -7,7 +7,7 @@ export const app = {
   getPath: vi.fn(() => process.cwd()),
   whenReady: vi.fn(() => Promise.resolve()),
   on: vi.fn(),
-  name: 'Aidle Test',
+  name: 'Juju22 Test',
 }
 
 export const ipcMain = {

@@ -2,7 +2,7 @@
   "id": "system",
   "name": "System Plugin",
   "version": "0.2.0",
-  "author": "Aidle",
+  "author": "Juju22",
   "description": "Built-in system integrations (hotkeys, timers, notifications)",
   "main": "index.js",
   "triggers": [

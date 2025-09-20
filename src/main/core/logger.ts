@@ -18,7 +18,7 @@ export class Logger {
   private readonly level: LogLevel
   private stream: WriteStream | null = null
 
-  constructor(name: string, level: LogLevel = (process.env.AIDLE_LOG_LEVEL as LogLevel) ?? 'info') {
+  constructor(name: string, level: LogLevel = (process.env.JUJU22_LOG_LEVEL as LogLevel) ?? 'info') {
     this.name = name
     this.level = level
   }
@@ -84,7 +84,7 @@ export class Logger {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true })
     }
-    return join(dir, 'aidle.log')
+    return join(dir, 'juju22.log')
   }
 }
 

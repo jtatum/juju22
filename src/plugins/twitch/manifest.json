@@ -2,7 +2,7 @@
   "id": "twitch",
   "name": "Twitch",
   "version": "0.2.0",
-  "author": "Aidle",
+  "author": "Juju22",
   "description": "Streams chat events and channel notifications from Twitch in mock mode.",
   "main": "index.js",
   "triggers": [

@@ -1,4 +1,4 @@
-# Aidle Development Guidelines
+# Juju22 Development Guidelines
 
 ## Logging
 

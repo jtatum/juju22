@@ -1,4 +1,4 @@
-# Aidle – Phase 3 Service Integrations
+# Juju22 – Phase 3 Service Integrations
 
 Phase 3 replaces the mock automation scaffolds with production-ready integrations for desktop automation, OBS Studio, and Twitch. The focus areas are richer system triggers, real streaming adapters, secure credential storage, and runtime observability so creators can trust their automation graph while operating live.
 

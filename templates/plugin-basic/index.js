@@ -3,7 +3,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const manifest = require('./manifest.json')
 
-/** @type {import('@aidle/plugin-sdk').PluginModule} */
+/** @type {import('@juju22/plugin-sdk').PluginModule} */
 const plugin = {
   manifest,
   async initialize(context) {

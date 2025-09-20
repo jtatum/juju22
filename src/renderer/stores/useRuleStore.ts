@@ -22,7 +22,7 @@ export const useRuleStore = create<RuleState>((set) => ({
   async fetchRules() {
     set({ loading: true, error: null })
     try {
-      const rules = await window.aidle.rules.list()
+      const rules = await window.juju22.rules.list()
       set({ rules })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
@@ -31,12 +31,12 @@ export const useRuleStore = create<RuleState>((set) => ({
     }
   },
   async getRule(id) {
-    const rule = await window.aidle.rules.get(id)
+    const rule = await window.juju22.rules.get(id)
     set({ selectedRule: rule })
     return rule
   },
   async saveRule(rule) {
-    const saved = await window.aidle.rules.save(rule)
+    const saved = await window.juju22.rules.save(rule)
     set((state) => {
       const existingIndex = state.rules.findIndex((entry) => entry.id === saved.id)
       const next = [...state.rules]
@@ -50,14 +50,14 @@ export const useRuleStore = create<RuleState>((set) => ({
     return saved
   },
   async deleteRule(id) {
-    await window.aidle.rules.delete(id)
+    await window.juju22.rules.delete(id)
     set((state) => ({
       rules: state.rules.filter((rule) => rule.id !== id),
       selectedRule: state.selectedRule?.id === id ? null : state.selectedRule,
     }))
   },
   async testRule(rule, sample) {
-    const result = await window.aidle.rules.test(rule, sample)
+    const result = await window.juju22.rules.test(rule, sample)
     return result
   },
   setSelected(rule) {

@@ -164,7 +164,7 @@ export class BackupManager {
       // Generate filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const extension = compress ? '.backup.gz' : '.backup.json'
-      const filename = `aidle-backup-${timestamp}${extension}`
+      const filename = `juju22-backup-${timestamp}${extension}`
       const filePath = join(this.backupDir, filename)
 
       // Serialize and optionally compress

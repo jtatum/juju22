@@ -1,10 +1,10 @@
 # Database Migrations Guide
 
-This document explains how to create, run, and manage database migrations in Aidle.
+This document explains how to create, run, and manage database migrations in Juju22.
 
 ## Overview
 
-Aidle uses a versioned migration system to manage database schema changes. All schema modifications should be done through migrations to ensure:
+Juju22 uses a versioned migration system to manage database schema changes. All schema modifications should be done through migrations to ensure:
 - Consistent database state across all installations
 - Reproducible upgrades and fresh installs
 - Version control for database changes

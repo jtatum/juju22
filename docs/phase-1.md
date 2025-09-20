@@ -1,6 +1,6 @@
-# Aidle – Phase 1 Foundation
+# Juju22 – Phase 1 Foundation
 
-Phase 1 establishes the scaffolding and core runtime necessary to build Aidle’s automation platform. This document summarises the deliverables, architecture decisions, and how to work with the new code.
+Phase 1 establishes the scaffolding and core runtime necessary to build Juju22’s automation platform. This document summarises the deliverables, architecture decisions, and how to work with the new code.
 
 ## Highlights
 
@@ -27,7 +27,7 @@ Electron Main
  └─ Window bootstrap + application menu
 
 React Renderer
- ├─ Aidle bridge (exposed via preload)
+ ├─ Juju22 bridge (exposed via preload)
  ├─ Dashboard displaying loaded plugins & recent events
  └─ Demo timer trigger exercising the System plugin
 ```
@@ -49,7 +49,7 @@ React Renderer
 
 - `registerPluginBridge` exposes typed IPC handlers for listing plugins and dispatching actions.
 - `registerEventBridge` streams trigger payloads to renderer windows, with automatic cleanup on window close.
-- `preload.ts` publishes a narrowed `window.aidle` API for the renderer (`plugins.list`, `plugins.executeAction`, `events.onPluginTrigger`).
+- `preload.ts` publishes a narrowed `window.juju22` API for the renderer (`plugins.list`, `plugins.executeAction`, `events.onPluginTrigger`).
 - The React dashboard surfaces loaded plugins and recent trigger events, plus a demo button that invokes the System plugin’s timer action.
 
 ## Testing Strategy

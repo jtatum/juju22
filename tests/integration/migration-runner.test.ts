@@ -24,7 +24,7 @@ describe('MigrationRunner Integration', () => {
   let mockLogger: Logger
 
   beforeEach(() => {
-    tempDir = mkdtempSync(join(tmpdir(), 'aidle-test-'))
+    tempDir = mkdtempSync(join(tmpdir(), 'juju22-test-'))
     const dbPath = join(tempDir, 'test.db')
     db = new Database(dbPath)
     eventBus = new EventBus()
