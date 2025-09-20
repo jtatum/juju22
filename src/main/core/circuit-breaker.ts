@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events'
 import type { Logger } from './logger'
 import { createLogger } from './logger'
+import type { EventBus } from './event-bus'
 
 export enum CircuitState {
   CLOSED = 'CLOSED',
@@ -14,6 +15,7 @@ export interface CircuitBreakerConfig {
   timeout?: number
   resetTimeout?: number
   logger?: Logger
+  eventBus?: EventBus
 }
 
 export interface CircuitBreakerStats {
@@ -43,6 +45,7 @@ export class CircuitBreaker extends EventEmitter {
   private readonly resetTimeout: number
   private readonly logger: Logger
   private readonly name: string
+  private readonly eventBus?: EventBus
 
   constructor(name: string, config: CircuitBreakerConfig = {}) {
     super()
@@ -52,6 +55,7 @@ export class CircuitBreaker extends EventEmitter {
     this.timeout = config.timeout ?? 60000 // 1 minute
     this.resetTimeout = config.resetTimeout ?? 30000 // 30 seconds
     this.logger = config.logger ?? createLogger(`CircuitBreaker:${name}`)
+    this.eventBus = config.eventBus
   }
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
@@ -135,6 +139,20 @@ export class CircuitBreaker extends EventEmitter {
 
     this.logger.error(`Circuit breaker ${this.name} transitioned to OPEN`)
     this.emit('open', this.name)
+
+    // Emit to EventBus for UI notifications
+    if (this.eventBus) {
+      this.eventBus.emit({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        type: 'system.circuit.opened' as any,
+        payload: {
+          name: this.name,
+          failureCount: this.failures,
+          timestamp: Date.now(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      })
+    }
   }
 
   private transitionToHalfOpen(): void {
@@ -154,6 +172,19 @@ export class CircuitBreaker extends EventEmitter {
 
     this.logger.info(`Circuit breaker ${this.name} transitioned to CLOSED`)
     this.emit('closed', this.name)
+
+    // Emit to EventBus for UI notifications
+    if (this.eventBus) {
+      this.eventBus.emit({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        type: 'system.circuit.closed' as any,
+        payload: {
+          name: this.name,
+          timestamp: Date.now(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      })
+    }
   }
 
   getStats(): CircuitBreakerStats {
@@ -184,14 +215,20 @@ export class CircuitBreaker extends EventEmitter {
 export class CircuitBreakerManager {
   private readonly breakers = new Map<string, CircuitBreaker>()
   private readonly logger: Logger
+  private eventBus?: EventBus
 
-  constructor(logger?: Logger) {
+  constructor(logger?: Logger, eventBus?: EventBus) {
     this.logger = logger ?? createLogger('CircuitBreakerManager')
+    this.eventBus = eventBus
   }
 
   getBreaker(name: string, config?: CircuitBreakerConfig): CircuitBreaker {
     if (!this.breakers.has(name)) {
-      const breakerConfig = { ...config, logger: config?.logger ?? this.logger }
+      const breakerConfig = {
+        ...config,
+        logger: config?.logger ?? this.logger,
+        eventBus: this.eventBus
+      }
       const breaker = new CircuitBreaker(name, breakerConfig)
       this.breakers.set(name, breaker)
 

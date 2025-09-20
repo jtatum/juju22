@@ -23,6 +23,17 @@ Aidle is a cross-platform automation and integration platform for content creato
 - OBS plugin powered by `obs-websocket-js` with reconnect/backoff and real scene/stream control (mock fallback retained)
 - Twitch plugin wired to `tmi.js` chat plus Helix APIs for followers, subscriptions, raids, shoutouts, channel metadata, and clip creation
 
+## Phase 6 Highlights (Performance & Reliability)
+
+- **Circuit Breaker Pattern** – Prevents cascading failures with automatic recovery and user notifications
+- **Performance Monitoring** – Real-time CPU/memory tracking with memory leak detection
+- **Error Reporter** – Intelligent error categorization with recovery suggestions and history tracking
+- **Retry Manager** – Configurable retry strategies with exponential backoff for different service types
+- **Import/Export** – Rule portability with conflict detection and validation
+- **Backup System** – Scheduled automatic backups with compression and point-in-time restoration
+- **Notification System** – Toast notifications for errors, warnings, and success messages
+- **Onboarding Wizard** – First-run experience with guided setup and sample rule creation
+
 ## Getting Started
 
 ```bash
@@ -66,3 +77,5 @@ aidle/
 - Settings and rule data are stored under the user’s Electron `appData` directory inside the `data/` subfolder.
 
 Refer to `docs/phase-1.md` for the Phase 1 foundation, `docs/phase-2.md` for the automation engine, `docs/phase-3.md` for service integrations, and `docs/phase-4.md` for the new GUI experience.
+
+See also `docs/phase-6.md` for performance monitoring, error handling, and reliability features added in Phase 6.

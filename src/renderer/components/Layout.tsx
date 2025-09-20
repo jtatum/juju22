@@ -1,5 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useBridgeSubscriptions } from '../hooks/useBridgeSubscriptions'
+import { NotificationContainer } from './NotificationToast'
+import { useNotificationStore } from '../stores/useNotificationStore'
 import './Layout.css'
 
 const navItems = [
@@ -8,10 +10,12 @@ const navItems = [
   { to: '/rules', label: 'Rules' },
   { to: '/variables', label: 'Variables' },
   { to: '/events', label: 'Events' },
+  { to: '/settings', label: 'Settings' },
 ]
 
 export const Layout = () => {
   useBridgeSubscriptions()
+  const { notifications, removeNotification } = useNotificationStore()
 
   return (
     <div className="app-shell">
@@ -34,6 +38,10 @@ export const Layout = () => {
       <main className="app-content">
         <Outlet />
       </main>
+      <NotificationContainer
+        notifications={notifications}
+        onDismiss={removeNotification}
+      />
     </div>
   )
 }

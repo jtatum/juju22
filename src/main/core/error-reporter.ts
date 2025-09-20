@@ -58,9 +58,9 @@ export class ErrorReporter {
   private readonly maxHistorySize = 100
   private readonly recoveryStrategies = new Map<ErrorCategory, ErrorRecoveryStrategy>()
 
-  constructor(eventBus?: EventBus) {
+  constructor(eventBus?: EventBus, logger?: Logger) {
     this.eventBus = eventBus
-    this.logger = createLogger('ErrorReporter')
+    this.logger = logger ?? createLogger('ErrorReporter')
     this.registerDefaultRecoveryStrategies()
   }
 
@@ -236,6 +236,11 @@ export class ErrorReporter {
   }
 
   private generateUserMessage(error: { message: string; code?: string }, context: ErrorContext): string {
+    // Check for custom message in metadata
+    if (context.metadata?.customMessage) {
+      return String(context.metadata.customMessage)
+    }
+
     const categoryMessages: Record<ErrorCategory, (error: { message: string; code?: string }) => string> = {
       [ErrorCategory.NETWORK]: () => 'Network connection issue detected. Please check your internet connection.',
       [ErrorCategory.DATABASE]: () => 'Database operation failed. The application may need to be restarted.',
@@ -410,7 +415,9 @@ export class ErrorReporter {
     const isRecovered = 'type' in report && report.type === 'error.recovered'
 
     this.eventBus.emit({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       type: isRecovered ? 'system.error.recovered' : 'system.error.reported' as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       payload: report as any,
     })
   }

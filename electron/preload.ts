@@ -1,4 +1,28 @@
-import * as electron from 'electron'
+console.log('[PRELOAD] Starting preload script...')
+
+let electron
+try {
+  console.log('[PRELOAD] Attempting to require electron...')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  electron = require('electron')
+  console.log('[PRELOAD] Electron required successfully:', typeof electron, Object.keys(electron || {}))
+} catch (err) {
+  console.error('[PRELOAD] Failed to require electron:', err)
+  throw err
+}
+
+let contextBridge, ipcRenderer
+try {
+  console.log('[PRELOAD] Getting contextBridge and ipcRenderer...')
+  contextBridge = electron.contextBridge
+  ipcRenderer = electron.ipcRenderer
+  console.log('[PRELOAD] Got contextBridge:', typeof contextBridge)
+  console.log('[PRELOAD] Got ipcRenderer:', typeof ipcRenderer)
+} catch (err) {
+  console.error('[PRELOAD] Failed to get contextBridge/ipcRenderer:', err)
+  throw err
+}
+import type { IpcRendererEvent } from 'electron'
 import type { JSONSchemaType } from 'ajv'
 import type {
   ActionDefinition,
@@ -37,8 +61,6 @@ const variableChannels = {
   reset: 'variables:reset',
   snapshot: 'variables:snapshot',
 } as const
-
-const { contextBridge, ipcRenderer } = electron
 
 type PluginDetails = {
   manifest: PluginManifest
@@ -83,42 +105,139 @@ const aidleBridge = {
   },
   events: {
     onPluginTrigger: (handler: (payload: PluginEventPayload) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, payload: PluginEventPayload) => handler(payload)
+      const listener = (_event: IpcRendererEvent, payload: PluginEventPayload) => handler(payload)
       ipcRenderer.on('events:plugin-trigger', listener)
       return () => ipcRenderer.off('events:plugin-trigger', listener)
     },
     onPluginStatus: (handler: (payload: PluginStatusPayload) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, payload: PluginStatusPayload) => handler(payload)
+      const listener = (_event: IpcRendererEvent, payload: PluginStatusPayload) => handler(payload)
       ipcRenderer.on('events:plugin-status', listener)
       return () => ipcRenderer.off('events:plugin-status', listener)
     },
     onLogEntry: (handler: (entry: EventLogEntry) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, entry: EventLogEntry) => handler(entry)
+      const listener = (_event: IpcRendererEvent, entry: EventLogEntry) => handler(entry)
       ipcRenderer.on('events:log-entry', listener)
       return () => ipcRenderer.off('events:log-entry', listener)
     },
     onLogBootstrap: (handler: (entries: EventLogEntry[]) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, entries: EventLogEntry[]) => handler(entries)
+      const listener = (_event: IpcRendererEvent, entries: EventLogEntry[]) => handler(entries)
       ipcRenderer.on('events:log-bootstrap', listener)
       return () => ipcRenderer.off('events:log-bootstrap', listener)
     },
     onPluginStatusBootstrap: (handler: (entries: PluginStatusPayload[]) => void) => {
       const listener = (
-        _event: Electron.IpcRendererEvent,
+        _event: IpcRendererEvent,
         entries: PluginStatusPayload[],
       ) => handler(entries)
       ipcRenderer.on('events:plugin-status-bootstrap', listener)
       return () => ipcRenderer.off('events:plugin-status-bootstrap', listener)
     },
     onVariableMutation: (handler: (mutation: VariableMutation) => void) => {
-      const listener = (_event: Electron.IpcRendererEvent, mutation: VariableMutation) => handler(mutation)
+      const listener = (_event: IpcRendererEvent, mutation: VariableMutation) => handler(mutation)
       ipcRenderer.on('events:variables-mutated', listener)
       return () => ipcRenderer.off('events:variables-mutated', listener)
     },
+    onError: (handler: (error: {
+      id: string;
+      message: string;
+      code?: string;
+      userMessage?: string;
+      suggestions?: string[];
+      category: string;
+      severity: string;
+      recoverable: boolean;
+      timestamp: string;
+    }) => void) => {
+      const listener = (_event: IpcRendererEvent, error: Parameters<typeof handler>[0]) => handler(error)
+      ipcRenderer.on('error:reported', listener)
+      return () => ipcRenderer.off('error:reported', listener)
+    },
+    onErrorRecovered: (handler: (recovery: {
+      id: string;
+      message: string;
+    }) => void) => {
+      const listener = (_event: IpcRendererEvent, recovery: Parameters<typeof handler>[0]) => handler(recovery)
+      ipcRenderer.on('error:recovered', listener)
+      return () => ipcRenderer.off('error:recovered', listener)
+    },
+    onCircuitOpened: (handler: (circuit: {
+      name: string;
+      failureCount: number;
+      message: string;
+      suggestions: string[];
+    }) => void) => {
+      const listener = (_event: IpcRendererEvent, circuit: Parameters<typeof handler>[0]) => handler(circuit)
+      ipcRenderer.on('circuit:opened', listener)
+      return () => ipcRenderer.off('circuit:opened', listener)
+    },
+    onCircuitClosed: (handler: (circuit: {
+      name: string;
+      message: string;
+    }) => void) => {
+      const listener = (_event: IpcRendererEvent, circuit: Parameters<typeof handler>[0]) => handler(circuit)
+      ipcRenderer.on('circuit:closed', listener)
+      return () => ipcRenderer.off('circuit:closed', listener)
+    },
+    // Generic event listeners for custom events
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    on: (channel: string, callback: (...args: any[]) => void) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const listener = (_event: IpcRendererEvent, ...args: any[]) => callback(...args)
+      ipcRenderer.on(channel, listener)
+      return () => ipcRenderer.off(channel, listener)
+    },
+    removeAllListeners: (channel: string) => ipcRenderer.removeAllListeners(channel),
   },
+  settings: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    get: (key: string) => ipcRenderer.invoke('settings:get', key) as Promise<any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    set: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value) as Promise<{ success: boolean }>,
+    has: (key: string) => ipcRenderer.invoke('settings:has', key) as Promise<boolean>,
+    delete: (key: string) => ipcRenderer.invoke('settings:delete', key) as Promise<{ success: boolean }>,
+    clear: () => ipcRenderer.invoke('settings:clear') as Promise<{ success: boolean }>,
+  },
+  backup: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    create: (label?: string) => ipcRenderer.invoke('backup:create', label) as Promise<any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    list: () => ipcRenderer.invoke('backup:list') as Promise<any[]>,
+    restore: (backupId: string) => ipcRenderer.invoke('backup:restore', backupId) as Promise<{ success: boolean }>,
+    delete: (backupId: string) => ipcRenderer.invoke('backup:delete', backupId) as Promise<{ success: boolean }>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getSettings: () => ipcRenderer.invoke('backup:getSettings') as Promise<any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    updateSettings: (settings: any) => ipcRenderer.invoke('backup:updateSettings', settings) as Promise<{ success: boolean }>,
+  },
+  importExport: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    exportRules: (ruleIds?: string[]) => ipcRenderer.invoke('import-export:exportRules', ruleIds) as Promise<any>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    importRules: () => ipcRenderer.invoke('import-export:importRules') as Promise<any>,
+  },
+  performance: {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getMetrics: () => ipcRenderer.invoke('performance:getMetrics') as Promise<{ success: boolean; data?: any; error?: string }>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    getMemoryMetrics: () => ipcRenderer.invoke('performance:getMemoryMetrics') as Promise<{ success: boolean; data?: any; error?: string }>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    detectMemoryLeaks: () => ipcRenderer.invoke('performance:detectMemoryLeaks') as Promise<{ success: boolean; data?: any[]; error?: string }>,
+  },
+  // Generic invoke for any custom IPC handlers (for backwards compatibility during migration)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
 }
 
-contextBridge.exposeInMainWorld('aidle', aidleBridge)
+try {
+  console.log('[PRELOAD] About to expose aidle bridge to window...')
+  contextBridge.exposeInMainWorld('aidle', aidleBridge)
+  console.log('[PRELOAD] Successfully exposed aidle bridge!')
+} catch (err) {
+  console.error('[PRELOAD] Failed to expose aidle bridge:', err)
+  throw err
+}
+
+console.log('[PRELOAD] Preload script completed successfully!')
 
 export type AidleBridge = typeof aidleBridge
 

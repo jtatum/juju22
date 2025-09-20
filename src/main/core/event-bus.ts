@@ -20,6 +20,7 @@ export class EventBus {
   private readonly logger: Logger
   private readonly maxLogEntries: number
   private readonly logBuffer: EventLogEntry[] = []
+  private readonly wildcardHandlers = new Set<(event: AidleEvent) => void>()
 
   constructor(options?: EventBusOptions) {
     this.logger = options?.logger ?? createLogger('EventBus')
@@ -29,7 +30,13 @@ export class EventBus {
   emit<T extends AidleEvent['type']>(event: Extract<AidleEvent, { type: T }>) {
     this.logger.debug('Event emitted', { type: event.type, payload: event.payload })
 
+    // Emit to specific type handlers
     this.emitter.emit(event.type, event.payload)
+
+    // Emit to wildcard handlers
+    for (const handler of this.wildcardHandlers) {
+      handler(event)
+    }
 
     const entry: EventLogEntry = {
       type: event.type,
@@ -58,6 +65,12 @@ export class EventBus {
   on<T extends AidleEvent['type']>(type: T, handler: (payload: EventPayloadByType[T]) => void) {
     this.emitter.on(type, handler)
     return () => this.emitter.off(type, handler)
+  }
+
+  // Listen to all events
+  onAll(handler: (event: AidleEvent) => void) {
+    this.wildcardHandlers.add(handler)
+    return () => this.wildcardHandlers.delete(handler)
   }
 
   onPluginTrigger(handler: (payload: PluginEventPayload) => void) {

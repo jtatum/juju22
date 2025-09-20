@@ -65,6 +65,7 @@ export interface PluginContext {
   settings: SettingsStore
   emitTrigger: (triggerId: string, data: unknown) => void
   emitStatus: (status: PluginStatusUpdate) => void
+  emitError: (error: Error | unknown, userMessage?: string) => void
   storage: PluginStorageBridge
 }
 

@@ -185,6 +185,10 @@ class ObsLiveRuntime {
     this.client.on('error', async (error) => {
       this.context.logger.error('OBS connection error', { error })
       this.context.emitStatus({ state: 'error', message: error.message })
+
+      // Report error to show toast notification
+      this.context.emitError(error, 'OBS WebSocket connection error')
+
       if (this.shouldReconnect) {
         await this.reconnect()
       }
@@ -204,6 +208,10 @@ class ObsLiveRuntime {
     } catch (error) {
       this.context.logger.error('Failed to connect to OBS', { error })
       this.context.emitStatus({ state: 'error', message: error.message })
+
+      // Report error to show toast notification
+      this.context.emitError(error, 'Failed to connect to OBS WebSocket')
+
       if (this.shouldReconnect) {
         await this.reconnect()
       } else {

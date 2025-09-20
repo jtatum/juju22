@@ -43,15 +43,15 @@ export class PerformanceMonitor {
   private readonly eventBus?: EventBus
   private readonly marks = new Map<string, PerformanceMark>()
   private readonly thresholds: PerformanceThresholds
-  private monitoringInterval?: NodeJS.Timer
+  private monitoringInterval?: NodeJS.Timeout
   // private previousMemory?: MemoryMetrics // Currently unused, may be needed for future features
   private previousCpu?: NodeJS.CpuUsage
   private memoryHistory: number[] = []
   private readonly maxHistorySize = 60 // 1 minute of history at 1Hz
 
-  constructor(eventBus?: EventBus, thresholds: PerformanceThresholds = {}) {
+  constructor(eventBus?: EventBus, thresholds: PerformanceThresholds = {}, logger?: Logger) {
     this.eventBus = eventBus
-    this.logger = createLogger('PerformanceMonitor')
+    this.logger = logger ?? createLogger('PerformanceMonitor')
     this.thresholds = {
       memoryUsageWarning: thresholds.memoryUsageWarning ?? 500, // 500 MB
       memoryUsageCritical: thresholds.memoryUsageCritical ?? 800, // 800 MB
@@ -289,7 +289,9 @@ export class PerformanceMonitor {
     const fullType = typeMap[eventType]
     if (fullType) {
       this.eventBus.emit({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: fullType as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         payload: data as any,
       })
     }

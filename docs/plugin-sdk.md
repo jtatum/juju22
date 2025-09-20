@@ -23,6 +23,40 @@ This document describes how to build and test local plugins against the Aidle ru
 
 4. Restart the running Aidle instance or, while in dev mode, toggle the plugin via the renderer to reload it. Phase 5 still requires a manual reload; hot-module support is tracked for Phase 6.
 
+## Error Handling
+
+Plugins can report errors to users through the `emitError` function in the plugin context:
+
+```javascript
+// In your plugin code
+context.emitError(error, 'User-friendly error message')
+```
+
+This will:
+- Log the technical error details for debugging
+- Show a toast notification to the user with your custom message
+- Provide automatic recovery suggestions based on the error type
+- Integrate with Aidle's circuit breaker and retry mechanisms
+
+Example usage:
+```javascript
+async connect() {
+  try {
+    await this.client.connect(address, password)
+  } catch (error) {
+    // Report the error with a user-friendly message
+    this.context.emitError(error, 'Failed to connect to the service')
+
+    // You can still handle the error internally
+    if (this.shouldReconnect) {
+      await this.reconnect()
+    } else {
+      throw error
+    }
+  }
+}
+```
+
 ## Variable Helpers
 
 Plugins can access the new variable service through the action payloads forwarded by the rule engine. Every action invocation includes `__context`, exposing:

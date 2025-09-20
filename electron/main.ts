@@ -3,6 +3,10 @@ import { mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
+
+// Enable debugging
+process.env.ELECTRON_ENABLE_LOGGING = '1'
+process.env.ELECTRON_LOG_FILE = join(process.cwd(), 'electron-debug.log')
 import { EventBus } from '../src/main/core/event-bus'
 import { DataStores } from '../src/main/core/storage'
 import {
@@ -20,6 +24,12 @@ import type { Logger } from '../src/main/core/logger'
 import { VariableService } from '../src/main/core/variable-service'
 import { registerVariableBridge } from '../src/main/ipc/variable-bridge'
 import { registerMigrationBridge } from '../src/main/ipc/migration-bridge'
+import { PerformanceMonitor } from '../src/main/core/performance-monitor'
+import { ErrorReporter } from '../src/main/core/error-reporter'
+import { ErrorBridge } from '../src/main/ipc/error-bridge'
+import { ImportExportBridge } from '../src/main/ipc/import-export-bridge'
+import { registerPerformanceBridge } from '../src/main/ipc/performance-bridge'
+import { registerSettingsBridge } from '../src/main/ipc/settings-bridge'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
@@ -37,6 +47,8 @@ let stores: DataStores | null = null
 let logger: Logger | null = null
 let ruleEngine: RuleEngine | null = null
 let variableService: VariableService | null = null
+let performanceMonitor: PerformanceMonitor | null = null
+let errorReporter: ErrorReporter | null = null
 let isShuttingDown = false
 
 const logError = (message: string, error: unknown) => {
@@ -71,9 +83,29 @@ async function createMainWindow() {
     title: 'Aidle',
     backgroundColor: '#0f172a',
     webPreferences: {
-      preload: join(__dirname, 'preload.mjs'),
+      preload: join(__dirname, 'preload.cjs'),
       contextIsolation: true,
+      sandbox: false,
+      nodeIntegration: false,
     },
+  })
+
+  // Add debugging event listeners
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    console.log(`[RENDERER CONSOLE ${level}] ${message} (${sourceId}:${line})`)
+  })
+
+  win.webContents.on('preload-error', (_event, preloadPath, error) => {
+    console.error('[PRELOAD ERROR]', preloadPath, error)
+  })
+
+  // @ts-expect-error - Electron type definitions are incomplete for crashed event
+  win.webContents.on('crashed', (_event: unknown, killed: boolean) => {
+    console.error('[RENDERER CRASHED]', killed ? 'killed' : 'crashed')
+  })
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    console.error('[RENDER PROCESS GONE]', details)
   })
 
   win.once('ready-to-show', () => {
@@ -167,6 +199,7 @@ async function bootstrap() {
   try {
     await stores.runMigrations()
     registerMigrationBridge(stores.migrationRunner)
+    registerSettingsBridge(stores)
   } catch (error) {
     logError('Failed to run database migrations', error)
     app.exit(1)
@@ -174,6 +207,19 @@ async function bootstrap() {
   }
 
   variableService = new VariableService(stores.variables, eventBus)
+
+  // Initialize performance monitoring (runs quietly in background)
+  performanceMonitor = new PerformanceMonitor(eventBus, {
+    memoryUsageWarning: 500, // 500 MB
+    memoryUsageCritical: 800, // 800 MB
+  }, logger)
+  performanceMonitor.start(30000) // Check every 30 seconds
+  registerPerformanceBridge(performanceMonitor)
+
+  // Initialize error reporter
+  errorReporter = new ErrorReporter(eventBus, logger)
+  new ErrorBridge(eventBus, errorReporter)
+
   const pluginDirectories = {
     builtInDirectory: resolveBuiltInPluginDirectory(),
     externalDirectory: resolveExternalPluginDirectory(),
@@ -186,6 +232,9 @@ async function bootstrap() {
   if (variableService) {
     registerVariableBridge(variableService)
   }
+
+  // Initialize import/export bridge
+  new ImportExportBridge(stores.rules, variableService, stores, eventBus, logger)
 
   const window = await createMainWindow()
 
@@ -225,6 +274,7 @@ app.on('before-quit', async (event) => {
     event.preventDefault()
     isShuttingDown = true
     try {
+      performanceMonitor?.stop()
       ruleEngine?.stop()
       await pluginManager.unloadAll()
     } catch (error) {

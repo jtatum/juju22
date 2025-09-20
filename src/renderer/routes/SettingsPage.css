@@ -1,0 +1,236 @@
+.settings-page {
+  padding: 32px;
+  max-width: 1200px;
+}
+
+.settings-page h2 {
+  margin: 0 0 32px 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.settings-section {
+  background: var(--color-surface);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.settings-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.settings-section h4 {
+  margin: 24px 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.settings-description {
+  margin: 0 0 16px 0;
+  color: var(--color-text-secondary);
+}
+
+.backup-controls {
+  margin-bottom: 24px;
+}
+
+.backup-create {
+  display: flex;
+  gap: 12px;
+  max-width: 500px;
+}
+
+.backup-create input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.backup-settings {
+  padding: 16px;
+  background: var(--color-background-secondary);
+  border-radius: 4px;
+  margin-bottom: 24px;
+}
+
+.settings-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+
+.settings-field span {
+  min-width: 150px;
+}
+
+.settings-field input[type="checkbox"] {
+  width: auto;
+  margin-right: 8px;
+}
+
+.settings-field input[type="number"],
+.settings-field select {
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 14px;
+  background: var(--color-surface);
+}
+
+.settings-field input[type="number"] {
+  width: 80px;
+}
+
+.settings-field select {
+  width: 200px;
+}
+
+.settings-hint {
+  margin: 12px 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.backup-list {
+  margin-top: 24px;
+}
+
+.backup-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.backup-table th {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--color-border);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.backup-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.backup-table tr:last-child td {
+  border-bottom: none;
+}
+
+.backup-table td button {
+  margin-right: 8px;
+}
+
+.import-export-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.ghost-button.danger {
+  color: var(--color-danger);
+}
+
+.ghost-button.danger:hover {
+  background-color: rgba(220, 38, 38, 0.1);
+}
+
+/* Advanced Settings */
+.advanced-settings {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-background-secondary);
+  border-radius: 8px;
+}
+
+.performance-monitor {
+  margin-top: 1rem;
+}
+
+.metrics-display {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: 6px;
+}
+
+.metric-group {
+  padding: 0.5rem;
+}
+
+.metric-group h5 {
+  color: var(--color-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-group p {
+  margin: 0.25rem 0;
+  color: var(--color-text-secondary);
+  font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.memory-leaks {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: 6px;
+  border: 1px solid var(--color-warning);
+}
+
+.memory-leaks h5 {
+  color: var(--color-warning);
+  margin-bottom: 1rem;
+}
+
+.leak-table {
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.leak-table th,
+.leak-table td {
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.leak-table .trend-increasing {
+  color: var(--color-danger);
+}
+
+.leak-table .trend-stable {
+  color: var(--color-text-secondary);
+}
+
+.leak-table .trend-decreasing {
+  color: var(--color-success);
+}
+
+.performance-notes {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--color-surface);
+  border-radius: 4px;
+  border-left: 3px solid var(--color-primary);
+}

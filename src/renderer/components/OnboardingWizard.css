@@ -1,0 +1,217 @@
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.onboarding-wizard {
+  background: var(--color-surface);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.onboarding-progress {
+  height: 4px;
+  background: var(--color-background-secondary);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+}
+
+.onboarding-progress-bar {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 0.3s ease-out;
+}
+
+.onboarding-step {
+  padding: 48px;
+  text-align: center;
+  overflow-y: auto;
+  flex: 1;
+  /* Add visual indicator for scrollability */
+  position: relative;
+}
+
+/* Show subtle scroll indicator when content overflows */
+.onboarding-step::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 48px;
+  right: 48px;
+  height: 40px;
+  background: linear-gradient(to top, var(--color-surface), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.onboarding-step:hover::after {
+  opacity: 1;
+}
+
+.onboarding-step h2 {
+  margin: 0 0 24px 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.onboarding-icon {
+  font-size: 64px;
+  margin: 24px 0;
+}
+
+.onboarding-step p {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-text);
+  margin: 0 0 32px 0;
+}
+
+.feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 32px 0;
+  text-align: left;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.feature-list li {
+  padding: 12px 0;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.plugin-examples {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin: 32px 0;
+}
+
+.plugin-example {
+  padding: 16px;
+  background: var(--color-background-secondary);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.plugin-example h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.plugin-example p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.rule-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 32px 0;
+  gap: 24px;
+}
+
+.rule-part {
+  padding: 20px;
+  background: var(--color-background-secondary);
+  border-radius: 8px;
+  flex: 1;
+  max-width: 180px;
+}
+
+.rule-part h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rule-part p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.rule-arrow {
+  font-size: 24px;
+  color: var(--color-primary);
+}
+
+.next-steps {
+  list-style: none;
+  padding: 0;
+  margin: 32px 0;
+  text-align: left;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.next-steps li {
+  padding: 8px 0;
+  font-size: 14px;
+  color: var(--color-text);
+  position: relative;
+  padding-left: 20px;
+}
+
+.next-steps li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+}
+
+.onboarding-footer {
+  padding: 24px 48px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.onboarding-navigation {
+  display: flex;
+  gap: 12px;
+}
+
+/* Success state for buttons */
+.secondary-button.success {
+  background: var(--color-success, #22c55e);
+  color: white;
+  cursor: default;
+  opacity: 0.9;
+}
+
+.secondary-button.success:hover {
+  background: var(--color-success, #22c55e);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

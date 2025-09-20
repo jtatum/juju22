@@ -6,6 +6,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { PluginManager } from '@main/core/plugin-manager'
 import { EventBus } from '@main/core/event-bus'
 import { DataStores } from '@main/core/storage'
+import { ErrorReporter } from '@main/core/error-reporter'
+import { RetryManager } from '@main/core/retry-manager'
+import { CircuitBreaker } from '@main/core/circuit-breaker'
 import type { Logger } from '@main/core/logger'
 
 const createMockLogger = (): Logger =>
@@ -107,6 +110,75 @@ describe('PluginManager', () => {
       )
 
       await expect(manager.loadPlugins()).rejects.toThrow(/PluginManager encountered errors/)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('reports plugin errors through emitError', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'aidle-plugin-error-'))
+    const externalDir = join(root, 'external')
+    mkdirSync(externalDir, { recursive: true })
+
+    let capturedEmitError: ((error: unknown, customMessage?: string) => void) | null = null
+
+    const moduleBody = `const manifest = require('./manifest.json')
+
+let pluginContext = null
+
+module.exports = {
+  manifest,
+  async initialize(ctx) {
+    pluginContext = ctx
+    ctx.emitStatus({ state: 'connected', message: 'ready' })
+
+    // Test emitError immediately
+    if (ctx.emitError) {
+      const error = new Error('Test connection failed')
+      ctx.emitError(error, 'Failed to connect to test service')
+    }
+  },
+  registerTriggers() { return manifest.triggers },
+  registerActions() { return manifest.actions },
+  async startListening() {},
+  async stopListening() {},
+  async executeAction(actionId, params) {},
+  async destroy() {},
+}
+`
+    createTestPlugin(root, {}, moduleBody)
+
+    try {
+      const eventBus = new EventBus()
+      const logger = createMockLogger()
+      const manager = new PluginManager(
+        {
+          builtInDirectory: root,
+          externalDirectory: externalDir,
+        },
+        eventBus,
+        new DataStores(),
+        logger,
+      )
+
+      // Spy on eventBus to see if error events are emitted
+      const emitSpy = vi.spyOn(eventBus, 'emit')
+
+      await manager.loadPlugins()
+      const plugin = manager.getPlugin('demo-plugin')
+      expect(plugin).toBeDefined()
+
+      // Check that an error event was emitted through the eventBus
+      const errorEmitCall = emitSpy.mock.calls.find(
+        call => call[0]?.type === 'system.error.reported'
+      )
+
+      expect(errorEmitCall).toBeDefined()
+      if (errorEmitCall) {
+        const errorReport = errorEmitCall[0].payload
+        expect(errorReport.userMessage).toBe('Failed to connect to test service')
+        expect(errorReport.context.pluginId).toBe('demo-plugin')
+      }
     } finally {
       rmSync(root, { recursive: true, force: true })
     }

@@ -49,9 +49,9 @@ export class PluginManager {
     this.validator = this.ajv.compile(pluginManifestSchema)
 
     // Initialize reliability components
-    this.circuitBreakerManager = new CircuitBreakerManager()
+    this.circuitBreakerManager = new CircuitBreakerManager(logger, eventBus)
     this.retryManager = new RetryManager(eventBus, logger)
-    this.errorReporter = new ErrorReporter(eventBus)
+    this.errorReporter = new ErrorReporter(eventBus, logger)
   }
 
   listLoaded(): LoadedPlugin[] {
@@ -260,6 +260,14 @@ export class PluginManager {
       })
     }
 
+    const captureError = (error: Error | unknown, customMessage?: string) => {
+      this.errorReporter.report(error, {
+        category: ErrorCategory.PLUGIN,
+        pluginId: manifest.id,
+        metadata: customMessage ? { customMessage } : undefined,
+      })
+    }
+
     const configStore = this.stores.getPluginConfig(manifest.id)
     const secretStore = this.stores.getPluginSecrets(manifest.id)
 
@@ -282,6 +290,7 @@ export class PluginManager {
       settings: this.stores.settings,
       emitTrigger: captureEmit,
       emitStatus: captureStatus,
+      emitError: captureError,
       storage: {
         config: createAccessor(configStore),
         secrets: createAccessor(secretStore),

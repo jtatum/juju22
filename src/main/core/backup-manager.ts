@@ -505,7 +505,9 @@ export class BackupManager {
     this.eventBus.emit({
       type: 'system.backup' as const,
       payload: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: type as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...payload as any
       },
     })

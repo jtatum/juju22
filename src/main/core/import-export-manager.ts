@@ -357,7 +357,9 @@ export class ImportExportManager {
     this.eventBus.emit({
       type: eventType as 'system.export' | 'system.import',
       payload: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         type: eventSubtype as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ...data as any
       },
     })
