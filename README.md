@@ -1,5 +1,8 @@
 # Juju22
 
+[![CI](https://github.com/jtatum/juju22/actions/workflows/ci.yml/badge.svg)](https://github.com/jtatum/juju22/actions/workflows/ci.yml)
+[![Release](https://github.com/jtatum/juju22/actions/workflows/release.yml/badge.svg)](https://github.com/jtatum/juju22/actions/workflows/release.yml)
+
 Juju22 is a cross-platform automation and integration platform for content creators. The project pairs an Electron main process with a React renderer and a plugin-first automation engine.
 
 ## Phase 1 Deliverables
