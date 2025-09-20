@@ -34,7 +34,7 @@
     "yaml": "^2.3.4"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.0",
+    "@electron/rebuild": "^4.0.1",
     "@playwright/test": "^1.49.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^24.5.2",
