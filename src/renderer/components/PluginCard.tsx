@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link } from 'react-router'
 import type { PluginSummary } from '@shared/plugins/types'
 import { StatusBadge } from './StatusBadge'
 import { usePluginStore } from '../stores/usePluginStore'

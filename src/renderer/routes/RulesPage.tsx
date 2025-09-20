@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router'
 import RuleTable from '../components/RuleTable'
 import { useRuleStore } from '../stores/useRuleStore'
 import { useNotificationStore } from '../stores/useNotificationStore'

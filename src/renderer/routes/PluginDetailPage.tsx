@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router'
 import type { JSONSchemaType } from 'ajv'
 import type { ActionDefinition, TriggerDefinition } from '@shared/plugins/types'
 import ConfigForm from '../components/ConfigForm'

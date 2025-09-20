@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router'
 import { useBridgeSubscriptions } from '../hooks/useBridgeSubscriptions'
 import { NotificationContainer } from './NotificationToast'
 import { useNotificationStore } from '../stores/useNotificationStore'

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Route, Routes } from 'react-router'
 import Layout from './components/Layout'
 import DashboardPage from './routes/DashboardPage'
 import PluginsPage from './routes/PluginsPage'
@@ -43,12 +43,7 @@ function App() {
 
   return (
     <>
-      <HashRouter
-        future={{
-          v7_startTransition: true,
-          v7_relativeSplatPath: true,
-        }}
-      >
+      <HashRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<DashboardPage />} />
