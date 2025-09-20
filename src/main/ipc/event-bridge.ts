@@ -23,6 +23,12 @@ export const registerEventBridge = (window: BrowserWindow, eventBus: EventBus, g
     }
   })
 
+  const unsubscribeVariables = eventBus.onVariableMutation((payload) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send('events:variables-mutated', payload)
+    }
+  })
+
   const sendInitialLog = () => {
     if (!window.isDestroyed()) {
       window.webContents.send('events:log-bootstrap', eventBus.getRecentLogEntries(50))
@@ -47,5 +53,6 @@ export const registerEventBridge = (window: BrowserWindow, eventBus: EventBus, g
     unsubscribe()
     unsubscribeLog()
     unsubscribeStatus()
+    unsubscribeVariables()
   })
 }

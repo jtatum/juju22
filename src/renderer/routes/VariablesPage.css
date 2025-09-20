@@ -1,0 +1,108 @@
+.variables-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.variables-page header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.variables-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.variables-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.variables-controls input,
+.variables-controls select,
+.variables-editor textarea,
+.variables-editor input {
+  border: 1px solid var(--surface-border);
+  background: var(--surface-muted);
+  color: inherit;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+}
+
+.variables-editor {
+  border: 1px solid var(--surface-border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  background: var(--surface-panel);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.form-grid .full-row {
+  grid-column: 1 / -1;
+}
+
+.editor-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.variables-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-panel);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+}
+
+.variables-table th,
+.variables-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--surface-border);
+  font-size: 0.875rem;
+}
+
+.variables-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.muted {
+  color: var(--muted-foreground);
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.hint {
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}

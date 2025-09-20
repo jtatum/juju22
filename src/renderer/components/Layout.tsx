@@ -6,6 +6,7 @@ const navItems = [
   { to: '/', label: 'Dashboard', exact: true },
   { to: '/plugins', label: 'Plugins' },
   { to: '/rules', label: 'Rules' },
+  { to: '/variables', label: 'Variables' },
   { to: '/events', label: 'Events' },
 ]
 
@@ -28,7 +29,7 @@ export const Layout = () => {
             </NavLink>
           ))}
         </nav>
-        <p className="version-hint">Automation Platform • Phase 4</p>
+        <p className="version-hint">Automation Platform • Phase 5</p>
       </aside>
       <main className="app-content">
         <Outlet />

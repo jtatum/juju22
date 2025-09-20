@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { EventBus } from '@main/core/event-bus'
 import { RuleEngine } from '@main/core/rule-engine'
+import { VariableService } from '@main/core/variable-service'
 import { DataStores } from '@main/core/storage'
 import type { Logger } from '@main/core/logger'
 import type { RuleDefinition } from '@shared/rules/types'
@@ -41,11 +42,18 @@ describe('RuleEngine', () => {
   it('dispatches actions when a rule matches an event', async () => {
     const eventBus = new EventBus({ logger: createMockLogger() })
     const stores = new DataStores()
+    const variableService = new VariableService(stores.variables, eventBus)
     const pluginManager = {
       executeAction: vi.fn().mockResolvedValue(undefined),
     }
 
-    const ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager as never, { logger: createMockLogger() })
+    const ruleEngine = new RuleEngine(
+      eventBus,
+      stores.rules,
+      pluginManager as never,
+      variableService,
+      { logger: createMockLogger() },
+    )
     ruleEngine.start()
 
     stores.rules.save(createRule())
@@ -75,10 +83,17 @@ describe('RuleEngine', () => {
   it('logs evaluation failures without dispatching actions', async () => {
     const eventBus = new EventBus({ logger: createMockLogger() })
     const stores = new DataStores()
+    const variableService = new VariableService(stores.variables, eventBus)
     const pluginManager = {
       executeAction: vi.fn().mockResolvedValue(undefined),
     }
-    const ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager as never, { logger: createMockLogger() })
+    const ruleEngine = new RuleEngine(
+      eventBus,
+      stores.rules,
+      pluginManager as never,
+      variableService,
+      { logger: createMockLogger() },
+    )
     ruleEngine.start()
 
     stores.rules.save(
@@ -118,10 +133,17 @@ describe('RuleEngine', () => {
   it('emits rule errors when action execution fails', async () => {
     const eventBus = new EventBus({ logger: createMockLogger() })
     const stores = new DataStores()
+    const variableService = new VariableService(stores.variables, eventBus)
     const pluginManager = {
       executeAction: vi.fn().mockRejectedValue(new Error('Action failed')),
     }
-    const ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager as never, { logger: createMockLogger() })
+    const ruleEngine = new RuleEngine(
+      eventBus,
+      stores.rules,
+      pluginManager as never,
+      variableService,
+      { logger: createMockLogger() },
+    )
     ruleEngine.start()
 
     stores.rules.save(createRule())
@@ -142,6 +164,195 @@ describe('RuleEngine', () => {
 
     expect((errors[0] as { error: string }).error).toBe('Action failed')
     expect(pluginManager.executeAction).toHaveBeenCalled()
+
+    ruleEngine.stop()
+  })
+
+  it('evaluates branch actions and executes matching clause', async () => {
+    const eventBus = new EventBus({ logger: createMockLogger() })
+    const stores = new DataStores()
+    const variableService = new VariableService(stores.variables, eventBus)
+    const pluginManager = {
+      executeAction: vi.fn().mockResolvedValue(undefined),
+    }
+
+    const ruleEngine = new RuleEngine(
+      eventBus,
+      stores.rules,
+      pluginManager as never,
+      variableService,
+      { logger: createMockLogger() },
+    )
+    ruleEngine.start()
+
+    const rule = createRule({
+      id: 'rule-branch',
+      actions: [
+        {
+          kind: 'branch',
+          branches: [
+            {
+              when: [
+                {
+                  type: 'equals',
+                  path: 'match',
+                  value: true,
+                },
+              ],
+              actions: [
+                {
+                  pluginId: 'system',
+                  actionId: 'branch.true',
+                  params: {},
+                },
+              ],
+            },
+          ],
+          otherwise: [
+            {
+              pluginId: 'system',
+              actionId: 'branch.false',
+              params: {},
+            },
+          ],
+        },
+      ],
+    })
+
+    stores.rules.save(rule)
+
+    eventBus.emitPluginTrigger({
+      pluginId: 'system',
+      triggerId: 'timer.completed',
+      data: { match: true },
+      timestamp: Date.now(),
+    })
+
+    await vi.waitFor(() => {
+      expect(pluginManager.executeAction).toHaveBeenCalledWith('system', 'branch.true', expect.any(Object))
+    })
+
+    pluginManager.executeAction.mockClear()
+
+    eventBus.emitPluginTrigger({
+      pluginId: 'system',
+      triggerId: 'timer.completed',
+      data: { match: false },
+      timestamp: Date.now(),
+    })
+
+    await vi.waitFor(() => {
+      expect(pluginManager.executeAction).toHaveBeenCalledWith('system', 'branch.false', expect.any(Object))
+    })
+
+    ruleEngine.stop()
+  })
+
+  it('supports loop actions with variable increments', async () => {
+    const eventBus = new EventBus({ logger: createMockLogger() })
+    const stores = new DataStores()
+    const variableService = new VariableService(stores.variables, eventBus)
+    const pluginManager = {
+      executeAction: vi.fn().mockResolvedValue(undefined),
+    }
+
+    const ruleEngine = new RuleEngine(
+      eventBus,
+      stores.rules,
+      pluginManager as never,
+      variableService,
+      { logger: createMockLogger() },
+    )
+    ruleEngine.start()
+
+    const rule = createRule({
+      id: 'rule-loop',
+      actions: [
+        {
+          kind: 'loop',
+          forEach: { path: 'items', as: 'item' },
+          actions: [
+            {
+              kind: 'variable',
+              scope: 'rule',
+              operation: 'increment',
+              key: 'processed',
+            },
+          ],
+        },
+      ],
+    })
+
+    stores.rules.save(rule)
+
+    eventBus.emitPluginTrigger({
+      pluginId: 'system',
+      triggerId: 'timer.completed',
+      data: { items: [1, 2, 3] },
+      timestamp: Date.now(),
+    })
+
+    await vi.waitFor(() => {
+      const value = variableService.getValue({ scope: 'rule', key: 'processed', ownerId: 'rule-loop' })
+      expect(value).toBe(3)
+    })
+
+    ruleEngine.stop()
+  })
+
+  it('executes script actions inside sandbox', async () => {
+    const eventBus = new EventBus({ logger: createMockLogger() })
+    const stores = new DataStores()
+    const variableService = new VariableService(stores.variables, eventBus)
+    const pluginManager = {
+      executeAction: vi.fn().mockResolvedValue(undefined),
+    }
+
+    const ruleEngine = new RuleEngine(
+      eventBus,
+      stores.rules,
+      pluginManager as never,
+      variableService,
+      { logger: createMockLogger() },
+    )
+    ruleEngine.start()
+
+    const rule = createRule({
+      id: 'rule-script',
+      actions: [
+        {
+          kind: 'script',
+          code: "variables.rule.increment('scriptCount'); helpers.setLocal('message', 'done')",
+        },
+        {
+          pluginId: 'system',
+          actionId: 'notification.send',
+          params: {
+            message: '{{context.locals.message}}',
+          },
+        },
+      ],
+    })
+
+    stores.rules.save(rule)
+
+    eventBus.emitPluginTrigger({
+      pluginId: 'system',
+      triggerId: 'timer.completed',
+      data: {},
+      timestamp: Date.now(),
+    })
+
+    await vi.waitFor(() => {
+      expect(variableService.getValue({ scope: 'rule', key: 'scriptCount', ownerId: 'rule-script' })).toBe(1)
+      expect(pluginManager.executeAction).toHaveBeenCalledWith(
+        'system',
+        'notification.send',
+        expect.objectContaining({
+          message: 'done',
+        }),
+      )
+    })
 
     ruleEngine.stop()
   })

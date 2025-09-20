@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import type { RuleDefinition } from '@shared/rules/types'
+import type { RuleActionInvocation, RuleDefinition } from '@shared/rules/types'
 import './RuleTable.css'
 
 interface RuleTableProps {
@@ -34,10 +34,8 @@ export const RuleTable = ({ rules, onDelete }: RuleTableProps) => (
             </code>
           </td>
           <td className="rule-table__actions">
-            {rule.actions.map((action) => (
-              <code key={`${rule.id}-${action.pluginId}-${action.actionId}`}>
-                {action.pluginId}:{action.actionId}
-              </code>
+            {rule.actions.map((action, actionIndex) => (
+              <code key={`${rule.id}-action-${actionIndex}`}>{describeAction(action)}</code>
             ))}
           </td>
           <td>
@@ -56,5 +54,25 @@ export const RuleTable = ({ rules, onDelete }: RuleTableProps) => (
     </tbody>
   </table>
 )
+
+const describeAction = (action: RuleActionInvocation) => {
+  const kind = action.kind ?? 'plugin'
+  switch (kind) {
+    case 'plugin':
+      return `${action.pluginId}:${action.actionId}`
+    case 'variable':
+      return `variable ${action.operation} ${action.scope}.${action.key}`
+    case 'loop':
+      return `loop ×${action.maxIterations ?? 'auto'}`
+    case 'branch':
+      return `branch ${action.branches.length}`
+    case 'random':
+      return `random pick ${action.pick ?? 1}`
+    case 'script':
+      return 'script'
+    default:
+      return kind
+  }
+}
 
 export default RuleTable

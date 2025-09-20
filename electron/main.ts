@@ -17,6 +17,8 @@ import { registerEventBridge } from '../src/main/ipc/event-bridge'
 import { registerRuleBridge } from '../src/main/ipc/rule-bridge'
 import { createLogger } from '../src/main/core/logger'
 import type { Logger } from '../src/main/core/logger'
+import { VariableService } from '../src/main/core/variable-service'
+import { registerVariableBridge } from '../src/main/ipc/variable-bridge'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
@@ -33,6 +35,7 @@ let pluginManager: PluginManager | null = null
 let stores: DataStores | null = null
 let logger: Logger | null = null
 let ruleEngine: RuleEngine | null = null
+let variableService: VariableService | null = null
 let isShuttingDown = false
 
 const logError = (message: string, error: unknown) => {
@@ -159,6 +162,7 @@ async function bootstrap() {
   buildMenu()
 
   stores = new DataStores()
+  variableService = new VariableService(stores.variables, eventBus)
   const pluginDirectories = {
     builtInDirectory: resolveBuiltInPluginDirectory(),
     externalDirectory: resolveExternalPluginDirectory(),
@@ -168,12 +172,15 @@ async function bootstrap() {
 
   pluginManager = new PluginManager(pluginDirectories, eventBus, stores)
   registerPluginBridge(pluginManager)
+  if (variableService) {
+    registerVariableBridge(variableService)
+  }
 
   const window = await createMainWindow()
 
   try {
     await pluginManager.loadPlugins()
-    ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager)
+    ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager, variableService)
     ruleEngine.start()
     ensureDemoRules(ruleEngine)
     registerRuleBridge(ruleEngine)

@@ -6,6 +6,7 @@ import PluginDetailPage from './routes/PluginDetailPage'
 import RulesPage from './routes/RulesPage'
 import RuleEditorPage from './routes/RuleEditorPage'
 import EventsPage from './routes/EventsPage'
+import VariablesPage from './routes/VariablesPage'
 import './App.css'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
           <Route path="rules/new" element={<RuleEditorPage />} />
           <Route path="rules/:ruleId" element={<RuleEditorPage />} />
           <Route path="events" element={<EventsPage />} />
+          <Route path="variables" element={<VariablesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

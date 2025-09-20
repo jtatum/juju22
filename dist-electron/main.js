@@ -117,6 +117,9 @@ class EventBus {
   emitPluginStatus(payload) {
     this.emit({ type: "plugin.status", payload });
   }
+  emitVariableMutation(payload) {
+    this.emit({ type: "variables.mutated", payload });
+  }
   on(type2, handler) {
     this.emitter.on(type2, handler);
     return () => this.emitter.off(type2, handler);
@@ -126,6 +129,9 @@ class EventBus {
   }
   onPluginStatus(handler) {
     return this.on("plugin.status", handler);
+  }
+  onVariableMutation(handler) {
+    return this.on("variables.mutated", handler);
   }
   onLog(handler) {
     this.emitter.on("log", handler);
@@ -513,8 +519,8 @@ const retryifyAsync = (fn, isRetriableError) => {
           if (Date.now() >= timestamp2)
             throw error;
           if (isRetriableError(error)) {
-            const delay = Math.round(100 * Math.random());
-            const delayPromise = new Promise((resolve2) => setTimeout(resolve2, delay));
+            const delay2 = Math.round(100 * Math.random());
+            const delayPromise = new Promise((resolve2) => setTimeout(resolve2, delay2));
             return delayPromise.then(() => attempt.apply(void 0, args));
           }
           throw error;
@@ -10550,6 +10556,7 @@ class ElectronStore extends Conf {
     }
   }
 }
+const DATABASE_FILENAME = "aidle.db";
 const { app: app$1 } = electron;
 const SETTINGS_SCHEMA = {
   theme: {
@@ -10597,9 +10604,8 @@ class PluginSecretStore extends ElectronStore {
 }
 class RuleRepository {
   db;
-  constructor() {
-    const dbPath = join(getDataDirectory(), "rules.db");
-    this.db = new Database(dbPath);
+  constructor(db) {
+    this.db = db;
     this.initialize();
   }
   initialize() {
@@ -10717,13 +10723,156 @@ class RuleRepository {
     };
   }
 }
+class VariableRepository {
+  db;
+  constructor(db) {
+    this.db = db;
+    this.initialize();
+  }
+  initialize() {
+    this.db.prepare(`
+        CREATE TABLE IF NOT EXISTS variables (
+          scope TEXT NOT NULL,
+          owner_id TEXT,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          PRIMARY KEY (scope, owner_id, key)
+        );
+      `).run();
+  }
+  getSnapshot(ruleId, pluginId) {
+    const rows = this.db.prepare(
+      `SELECT * FROM variables
+         WHERE scope = 'global'
+            OR (scope = 'plugin' AND owner_id = @pluginId)
+            OR (scope = 'rule' AND owner_id = @ruleId)`
+    ).all({ pluginId, ruleId });
+    const snapshot = {
+      global: {},
+      plugin: {},
+      rule: {}
+    };
+    for (const row of rows) {
+      const target = snapshot[row.scope];
+      target[row.key] = this.deserializeValue(row.value);
+    }
+    return snapshot;
+  }
+  list(scope2, ownerId) {
+    const rows = this.db.prepare(
+      `SELECT * FROM variables
+         WHERE scope = @scope
+           AND (@ownerId IS NULL OR owner_id = @ownerId)
+           AND (scope != 'global' OR owner_id IS NULL)
+         ORDER BY key ASC`
+    ).all({ scope: scope2, ownerId: this.resolveOwnerId(scope2, ownerId) });
+    return rows.map((row) => this.mapRow(row));
+  }
+  getValue(key) {
+    const row = this.findRow(key);
+    return row ? this.mapRow(row) : void 0;
+  }
+  setValue(key, value) {
+    const ownerId = this.resolveOwnerId(key.scope, key.ownerId);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    const existing = this.findRow(key);
+    const createdAt = existing?.created_at ?? now;
+    this.db.prepare(
+      `INSERT INTO variables (scope, owner_id, key, value, created_at, updated_at)
+         VALUES (@scope, @ownerId, @key, @value, @createdAt, @updatedAt)
+         ON CONFLICT(scope, owner_id, key) DO UPDATE SET
+           value = excluded.value,
+           created_at = excluded.created_at,
+           updated_at = excluded.updated_at`
+    ).run({
+      scope: key.scope,
+      ownerId,
+      key: key.key,
+      value: this.serializeValue(value),
+      createdAt,
+      updatedAt: now
+    });
+    const updated = this.findRow(key);
+    if (!updated) {
+      throw new Error(`Failed to persist variable ${key.scope}:${ownerId ?? "global"}:${key.key}`);
+    }
+    return this.mapRow(updated);
+  }
+  incrementValue(key, delta = 1) {
+    const operation = this.db.transaction((amount) => {
+      const existing = this.findRow(key);
+      const currentValue = existing ? this.deserializeValue(existing.value) : 0;
+      if (typeof currentValue !== "number") {
+        throw new Error(`Cannot increment non-numeric variable ${key.key}`);
+      }
+      const nextValue = currentValue + amount;
+      return this.setValue(key, nextValue);
+    });
+    return operation(delta);
+  }
+  deleteValue(key) {
+    const ownerId = this.resolveOwnerId(key.scope, key.ownerId);
+    const result = this.db.prepare(
+      `DELETE FROM variables
+         WHERE scope = @scope
+           AND ((@ownerId IS NULL AND owner_id IS NULL) OR owner_id = @ownerId)
+           AND key = @key`
+    ).run({ scope: key.scope, ownerId, key: key.key });
+    return result.changes > 0;
+  }
+  findRow(key) {
+    const ownerId = this.resolveOwnerId(key.scope, key.ownerId);
+    return this.db.prepare(
+      `SELECT * FROM variables
+         WHERE scope = @scope
+           AND ((@ownerId IS NULL AND owner_id IS NULL) OR owner_id = @ownerId)
+           AND key = @key`
+    ).get({ scope: key.scope, ownerId, key: key.key });
+  }
+  mapRow(row) {
+    return {
+      scope: row.scope,
+      ownerId: row.owner_id ?? void 0,
+      key: row.key,
+      value: this.deserializeValue(row.value),
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+  resolveOwnerId(scope2, ownerId) {
+    if (scope2 === "global") {
+      return null;
+    }
+    if (!ownerId) {
+      throw new Error(`Variable scope '${scope2}' requires an ownerId`);
+    }
+    return ownerId;
+  }
+  serializeValue(value) {
+    return JSON.stringify(value ?? null);
+  }
+  deserializeValue(value) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+}
 class DataStores {
   settings = new SettingsStore();
-  rules = new RuleRepository();
+  db;
+  rules;
+  variables;
   pluginConfigs = /* @__PURE__ */ new Map();
   pluginSecrets = /* @__PURE__ */ new Map();
   secretsKey;
   constructor() {
+    this.db = createDatabaseConnection();
+    this.rules = new RuleRepository(this.db);
+    this.variables = new VariableRepository(this.db);
     const existingKey = this.settings.get("pluginSecretsKey");
     if (!existingKey) {
       const key = randomBytes(32).toString("hex");
@@ -10758,6 +10907,10 @@ class DataStores {
     return store;
   }
 }
+const createDatabaseConnection = () => {
+  const dbPath = join(getDataDirectory(), DATABASE_FILENAME);
+  return new Database(dbPath);
+};
 const getDataDirectory = () => {
   const dir = join(app$1.getPath("userData"), "data");
   if (!existsSync(dir)) {
@@ -18471,16 +18624,173 @@ class PluginManager {
 }
 const resolveBuiltInPluginDirectory = () => join(process.env.APP_ROOT ?? process.cwd(), "src", "plugins");
 const resolveExternalPluginDirectory = () => join(process.cwd(), "plugins-external");
+const TOKEN_PATTERN = /{{\s*([^{}]+)\s*}}/g;
+const MAX_DEPTH = 6;
+const MAX_STRING_LENGTH = 1e4;
+const resolveExpressions = (input, env2) => {
+  return resolveValue(input, env2, 0);
+};
+const resolveValue = (value, env2, depth) => {
+  if (depth > MAX_DEPTH) {
+    throw new Error("Exceeded maximum expression resolution depth");
+  }
+  if (typeof value === "string") {
+    return resolveString(value, env2);
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => resolveValue(entry, env2, depth + 1));
+  }
+  if (value && typeof value === "object") {
+    const next2 = {};
+    for (const [key, entry] of Object.entries(value)) {
+      next2[key] = resolveValue(entry, env2, depth + 1);
+    }
+    return next2;
+  }
+  return value;
+};
+const resolveString = (value, env2) => {
+  if (!value.includes("{{")) {
+    return value;
+  }
+  const trimmed = value.trim();
+  const isPureExpression = trimmed.startsWith("{{") && trimmed.endsWith("}}") && trimmed.match(TOKEN_PATTERN)?.length === 1;
+  if (isPureExpression) {
+    const expression = trimmed.slice(2, -2);
+    return evaluateExpression(expression, env2);
+  }
+  const replaced = value.replace(TOKEN_PATTERN, (_, expression) => {
+    const result = evaluateExpression(expression, env2);
+    if (result == null) {
+      return "";
+    }
+    if (typeof result === "object") {
+      return JSON.stringify(result);
+    }
+    return String(result);
+  });
+  if (replaced.length > MAX_STRING_LENGTH) {
+    return replaced.slice(0, MAX_STRING_LENGTH);
+  }
+  return replaced;
+};
+const evaluateExpression = (rawExpression, env2) => {
+  const [pathPart, ...filters] = rawExpression.split("|").map((segment) => segment.trim()).filter(Boolean);
+  if (!pathPart) {
+    return void 0;
+  }
+  let value = resolvePath(pathPart, env2);
+  for (const filter of filters) {
+    value = applyFilter(filter, value);
+  }
+  return value;
+};
+const applyFilter = (filter, value) => {
+  switch (filter) {
+    case "upper":
+      return typeof value === "string" ? value.toUpperCase() : value;
+    case "lower":
+      return typeof value === "string" ? value.toLowerCase() : value;
+    case "json":
+      return JSON.stringify(value);
+    case "number":
+      if (typeof value === "number") {
+        return value;
+      }
+      if (typeof value === "string") {
+        const parsed = Number(value);
+        return Number.isNaN(parsed) ? value : parsed;
+      }
+      return value;
+    default:
+      return value;
+  }
+};
+const resolvePath = (path2, env2) => {
+  const segments = path2.split(".").map((segment) => segment.trim()).filter(Boolean);
+  if (segments.length === 0) {
+    return void 0;
+  }
+  const [root, ...rest] = segments;
+  switch (root) {
+    case "variables": {
+      const [scopeSegment, ...scopePath] = rest;
+      if (!isVariableScope$1(scopeSegment)) {
+        return void 0;
+      }
+      const scopeValues = env2.context.variables[scopeSegment];
+      return getPathValue(scopeValues, scopePath);
+    }
+    case "payload":
+      return getPathValue(env2.context.payload, rest);
+    case "context": {
+      const [contextRoot, ...contextRest] = rest;
+      if (contextRoot === "payload") {
+        return getPathValue(env2.context.payload, contextRest);
+      }
+      if (contextRoot === "trigger") {
+        return getPathValue(env2.context.trigger, contextRest);
+      }
+      if (contextRoot === "locals") {
+        return getPathValue(env2.context.locals ?? {}, contextRest);
+      }
+      if (contextRoot === "variables") {
+        const [scopeSegment, ...scopePath] = contextRest;
+        if (!isVariableScope$1(scopeSegment)) {
+          return void 0;
+        }
+        return getPathValue(env2.context.variables[scopeSegment], scopePath);
+      }
+      return void 0;
+    }
+    case "trigger":
+      return getPathValue(env2.context.trigger, rest);
+    case "locals":
+      return getPathValue(env2.context.locals ?? {}, rest);
+    default:
+      return void 0;
+  }
+};
+const getPathValue = (input, segments) => {
+  let current = input;
+  for (const segment of segments) {
+    if (current == null) {
+      return void 0;
+    }
+    if (Array.isArray(current)) {
+      const index = Number(segment);
+      if (Number.isNaN(index)) {
+        return void 0;
+      }
+      current = current[index];
+      continue;
+    }
+    if (typeof current === "object") {
+      current = current[segment];
+      continue;
+    }
+    return void 0;
+  }
+  return current;
+};
+const isVariableScope$1 = (value) => {
+  return value === "global" || value === "plugin" || value === "rule";
+};
 class RuleEngine {
+  static MAX_ACTION_DEPTH = 8;
+  static MAX_LOOP_ITERATIONS = 100;
+  static SCRIPT_TIMEOUT_MS = 3e3;
   eventBus;
   repository;
+  variables;
   pluginManager;
   logger;
   unsubscribe = null;
-  constructor(eventBus2, repository, pluginManager2, options) {
+  constructor(eventBus2, repository, pluginManager2, variables, options) {
     this.eventBus = eventBus2;
     this.repository = repository;
     this.pluginManager = pluginManager2;
+    this.variables = variables;
     this.logger = options?.logger ?? createLogger("RuleEngine");
   }
   start() {
@@ -18511,21 +18821,30 @@ class RuleEngine {
     this.repository.deleteRule(id2);
   }
   testRule(rule, data) {
-    return evaluateRule(rule, data);
+    const context = {
+      trigger: rule.trigger,
+      payload: data,
+      variables: this.variables.getSnapshot(rule.id, rule.trigger.pluginId),
+      locals: {}
+    };
+    return evaluateRule(rule, data, context);
   }
   async handleTrigger(payload) {
     const rules2 = this.repository.listByTrigger({ pluginId: payload.pluginId, triggerId: payload.triggerId });
     if (rules2.length === 0) {
       return;
     }
-    const context = {
-      trigger: { pluginId: payload.pluginId, triggerId: payload.triggerId },
-      eventTimestamp: payload.timestamp
-    };
     const matchedSummaries = [];
     for (const rule of rules2) {
       try {
-        const evaluation = evaluateRule(rule, payload.data);
+        const context = {
+          trigger: { pluginId: payload.pluginId, triggerId: payload.triggerId },
+          eventTimestamp: payload.timestamp,
+          payload: payload.data,
+          variables: this.variables.getSnapshot(rule.id, payload.pluginId),
+          locals: {}
+        };
+        const evaluation = evaluateRule(rule, payload.data, context);
         matchedSummaries.push({ ruleId: rule.id, matched: evaluation.matched, reason: evaluation.reason });
         this.eventBus.emit({
           type: "rule.evaluation",
@@ -18538,7 +18857,7 @@ class RuleEngine {
         if (!evaluation.matched) {
           continue;
         }
-        await this.dispatchActions(rule, payload);
+        await this.dispatchActions(rule, payload, context);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         this.logger.error(`Error while processing rule ${rule.id}`, { error });
@@ -18555,39 +18874,262 @@ class RuleEngine {
       payload.matchedRules = matchedSummaries;
     }
   }
-  async dispatchActions(rule, payload) {
-    for (const action of rule.actions) {
-      const dispatchEvent = {
+  async dispatchActions(rule, payload, context) {
+    await this.executeActionSequence(rule, rule.actions, payload, context, 0);
+  }
+  async executeActionSequence(rule, actions, payload, context, depth) {
+    if (!actions || actions.length === 0) {
+      return;
+    }
+    if (depth > RuleEngine.MAX_ACTION_DEPTH) {
+      throw new Error(`Maximum action depth exceeded for rule ${rule.id}`);
+    }
+    for (const action of actions) {
+      await this.executeActionNode(rule, action, payload, context, depth);
+    }
+  }
+  async executeActionNode(rule, action, payload, context, depth) {
+    switch (action.kind ?? "plugin") {
+      case "plugin":
+        await this.executePluginAction(rule, action, payload, context);
+        return;
+      case "branch":
+        await this.executeBranchAction(rule, action, payload, context, depth + 1);
+        return;
+      case "loop":
+        await this.executeLoopAction(rule, action, payload, context, depth + 1);
+        return;
+      case "random":
+        await this.executeRandomAction(rule, action, payload, context, depth + 1);
+        return;
+      case "script":
+        await this.executeScriptAction(rule, action, payload, context);
+        return;
+      case "variable":
+        await this.executeVariableAction(rule, action, payload, context);
+        return;
+      default:
+        this.logger.warn(`Encountered unsupported action kind ${action.kind ?? "plugin"} in rule ${rule.id}`);
+    }
+  }
+  async executePluginAction(rule, action, payload, context) {
+    const dispatchEvent = {
+      ruleId: rule.id,
+      action,
+      dispatchedAt: Date.now()
+    };
+    try {
+      const resolvedParams = action.params ? resolveExpressions(action.params, { context }) : void 0;
+      await this.pluginManager.executeAction(action.pluginId, action.actionId, {
+        ...resolvedParams ?? {},
+        __sourceRule: rule.id,
+        __sourceEvent: {
+          pluginId: payload.pluginId,
+          triggerId: payload.triggerId,
+          timestamp: payload.timestamp
+        },
+        __context: context
+      });
+      this.eventBus.emit({ type: "rule.action", payload: dispatchEvent });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to dispatch plugin action ${action.actionId} for rule ${rule.id}`, { error });
+      const ruleError = {
         ruleId: rule.id,
-        action,
-        dispatchedAt: Date.now()
+        error: message,
+        details: {
+          action: dispatchEvent,
+          error: error instanceof Error ? { stack: error.stack } : void 0
+        },
+        occurredAt: Date.now()
       };
-      try {
-        await this.pluginManager.executeAction(action.pluginId, action.actionId, {
-          ...action.params ?? {},
-          __sourceRule: rule.id,
-          __sourceEvent: {
-            pluginId: payload.pluginId,
-            triggerId: payload.triggerId,
-            timestamp: payload.timestamp
-          }
-        });
-        this.eventBus.emit({ type: "rule.action", payload: dispatchEvent });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.error(`Failed to dispatch action ${action.actionId} for rule ${rule.id}`, { error });
-        const ruleError = {
-          ruleId: rule.id,
-          error: message,
-          details: {
-            action: dispatchEvent,
-            error: error instanceof Error ? { stack: error.stack } : void 0
-          },
-          occurredAt: Date.now()
-        };
-        this.eventBus.emit({ type: "rule.error", payload: ruleError });
+      this.eventBus.emit({ type: "rule.error", payload: ruleError });
+    }
+  }
+  async executeBranchAction(rule, action, payload, context, depth) {
+    for (const clause of action.branches) {
+      const matches = !clause.when || clause.when.length === 0 || clause.when.every((condition) => evaluateCondition(condition, payload.data, context));
+      if (matches) {
+        await this.executeActionSequence(rule, clause.actions, payload, context, depth);
+        return;
       }
     }
+    if (action.otherwise && action.otherwise.length > 0) {
+      await this.executeActionSequence(rule, action.otherwise, payload, context, depth);
+    }
+  }
+  async executeLoopAction(rule, action, payload, context, depth) {
+    const configuredLimit = action.maxIterations ?? (action.forEach ? Number.MAX_SAFE_INTEGER : 1);
+    const limit2 = Math.min(Math.max(configuredLimit, 0), RuleEngine.MAX_LOOP_ITERATIONS);
+    if (limit2 <= 0) {
+      return;
+    }
+    const delayMs = Math.max(action.delayMs ?? 0, 0);
+    if (action.forEach) {
+      const collection = extractValue(payload.data, action.forEach.path, context);
+      if (!Array.isArray(collection)) {
+        this.logger.warn(`Loop forEach path '${action.forEach.path}' did not resolve to an array in rule ${rule.id}`);
+        return;
+      }
+      const alias = action.forEach.as ?? "item";
+      const iterations = Math.min(limit2, collection.length);
+      for (let index = 0; index < iterations; index += 1) {
+        const scopedContext = this.withLocals(context, {
+          [alias]: collection[index],
+          $index: index,
+          $value: collection[index]
+        });
+        await this.executeActionSequence(rule, action.actions, payload, scopedContext, depth);
+        if (delayMs > 0) {
+          await delay(delayMs);
+        }
+      }
+      return;
+    }
+    for (let index = 0; index < limit2; index += 1) {
+      const scopedContext = this.withLocals(context, { $index: index });
+      await this.executeActionSequence(rule, action.actions, payload, scopedContext, depth);
+      if (delayMs > 0) {
+        await delay(delayMs);
+      }
+    }
+  }
+  async executeRandomAction(rule, action, payload, context, depth) {
+    if (!action.from || action.from.length === 0) {
+      return;
+    }
+    const pool = [...action.from];
+    const pick = Math.max(
+      1,
+      Math.min(action.pick ?? 1, action.unique === false ? RuleEngine.MAX_LOOP_ITERATIONS : pool.length)
+    );
+    if (action.unique === false) {
+      for (let index = 0; index < pick; index += 1) {
+        const chosen = pool[Math.floor(Math.random() * pool.length)];
+        await this.executeActionNode(rule, chosen, payload, context, depth);
+      }
+      return;
+    }
+    shuffle(pool);
+    const selection = pool.slice(0, Math.min(pick, pool.length));
+    for (const chosen of selection) {
+      await this.executeActionNode(rule, chosen, payload, context, depth);
+    }
+  }
+  async executeScriptAction(rule, action, payload, context) {
+    try {
+      const timeout = Math.min(Math.max(action.timeoutMs ?? RuleEngine.SCRIPT_TIMEOUT_MS, 1), 1e4);
+      const sandbox = vm.createContext({
+        console: this.createScriptConsole(rule.id),
+        context,
+        variables: this.variables.createScopedAccessor(rule.id, payload.pluginId),
+        args: action.arguments ?? {},
+        helpers: {
+          setLocal: (key, value) => {
+            context.locals = {
+              ...context.locals ?? {},
+              [key]: value
+            };
+          }
+        }
+      });
+      const script = new vm.Script(action.code, {
+        filename: `rule-${rule.id}-script.js`,
+        displayErrors: true
+      });
+      script.runInContext(sandbox, { timeout });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Script action failed for rule ${rule.id}`, { error });
+      const ruleError = {
+        ruleId: rule.id,
+        error: message,
+        details: {
+          action,
+          error: error instanceof Error ? { stack: error.stack } : void 0
+        },
+        occurredAt: Date.now()
+      };
+      this.eventBus.emit({ type: "rule.error", payload: ruleError });
+    }
+  }
+  async executeVariableAction(rule, action, payload, context) {
+    if (!action.key) {
+      this.logger.warn(`Variable action missing key in rule ${rule.id}`);
+      return;
+    }
+    const variableKey = this.buildVariableKey(action.scope, action.key, rule, payload);
+    const source = { type: "rule", id: rule.id };
+    try {
+      switch (action.operation) {
+        case "set": {
+          const resolvedValue = action.value !== void 0 ? resolveExpressions(action.value, { context }) : null;
+          this.variables.setValue(variableKey, resolvedValue, source);
+          break;
+        }
+        case "increment": {
+          const rawAmount = action.amount ?? 1;
+          const resolvedAmount = resolveExpressions(rawAmount, { context });
+          const numericAmount = typeof resolvedAmount === "number" ? resolvedAmount : Number(resolvedAmount);
+          if (Number.isNaN(numericAmount)) {
+            throw new Error(`Increment amount for variable '${action.key}' must be numeric`);
+          }
+          this.variables.incrementValue(variableKey, numericAmount, source);
+          break;
+        }
+        case "reset": {
+          this.variables.deleteValue(variableKey, source);
+          break;
+        }
+        default:
+          this.logger.warn(`Unsupported variable operation ${action.operation} in rule ${rule.id}`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Variable action failed for rule ${rule.id}`, { error });
+      const ruleError = {
+        ruleId: rule.id,
+        error: message,
+        details: {
+          action,
+          error: error instanceof Error ? { stack: error.stack } : void 0
+        },
+        occurredAt: Date.now()
+      };
+      this.eventBus.emit({ type: "rule.error", payload: ruleError });
+    }
+  }
+  withLocals(context, updates) {
+    return {
+      ...context,
+      locals: {
+        ...context.locals ?? {},
+        ...updates
+      }
+    };
+  }
+  buildVariableKey(scope2, key, rule, payload) {
+    if (!key) {
+      throw new Error("Variable key is required");
+    }
+    switch (scope2) {
+      case "global":
+        return { scope: scope2, key };
+      case "plugin":
+        return { scope: scope2, key, ownerId: payload.pluginId };
+      case "rule":
+        return { scope: scope2, key, ownerId: rule.id };
+      default: {
+        throw new Error(`Unsupported variable scope ${scope2 ?? "unknown"}`);
+      }
+    }
+  }
+  createScriptConsole(ruleId) {
+    return {
+      log: (...args) => this.logger.info(`Rule ${ruleId} script log`, { args }),
+      warn: (...args) => this.logger.warn(`Rule ${ruleId} script warn`, { args }),
+      error: (...args) => this.logger.error(`Rule ${ruleId} script error`, { args })
+    };
   }
 }
 const ensureTimestamps = (rule) => {
@@ -18598,12 +19140,12 @@ const ensureTimestamps = (rule) => {
     updatedAt: now
   };
 };
-const evaluateRule = (rule, data) => {
+const evaluateRule = (rule, data, context) => {
   if (!rule.conditions || rule.conditions.length === 0) {
     return { ruleId: rule.id, matched: true };
   }
   for (const condition of rule.conditions) {
-    const satisfied = evaluateCondition(condition, data);
+    const satisfied = evaluateCondition(condition, data, context);
     if (!satisfied) {
       return {
         ruleId: rule.id,
@@ -18614,8 +19156,8 @@ const evaluateRule = (rule, data) => {
   }
   return { ruleId: rule.id, matched: true };
 };
-const evaluateCondition = (condition, data) => {
-  const value = extractValue(data, condition.path);
+const evaluateCondition = (condition, data, context) => {
+  const value = extractValue(data, condition.path, context);
   switch (condition.type) {
     case "equals":
       return deepEqual(value, condition.value);
@@ -18647,13 +19189,55 @@ const describeConditionFailure = (condition) => {
     }
   }
 };
-const extractValue = (data, path2) => {
+const extractValue = (data, path2, context) => {
   if (!path2) return void 0;
-  if (data == null) return void 0;
-  const segments = path2.split(".");
-  let current = data;
-  for (const segment of segments) {
-    if (typeof current !== "object" || current === null) {
+  const segments = path2.split(".").filter(Boolean);
+  if (segments.length === 0) {
+    return void 0;
+  }
+  const [root, ...rest] = segments;
+  if (root === "variables" && context) {
+    const [scopeSegment, ...variablePath] = rest;
+    if (!isVariableScope(scopeSegment)) {
+      return void 0;
+    }
+    return dig(context.variables[scopeSegment], variablePath);
+  }
+  if (root === "context" && context) {
+    const [contextRoot, ...contextPath] = rest;
+    if (contextRoot === "payload") {
+      return dig(context.payload, contextPath);
+    }
+    if (contextRoot === "trigger") {
+      return dig(context.trigger, contextPath);
+    }
+    if (contextRoot === "locals") {
+      return dig(context.locals ?? {}, contextPath);
+    }
+    if (contextRoot === "variables") {
+      const [scopeSegment, ...variablePath] = contextPath;
+      if (!isVariableScope(scopeSegment)) {
+        return void 0;
+      }
+      return dig(context.variables[scopeSegment], variablePath);
+    }
+    return void 0;
+  }
+  if (root === "payload") {
+    return dig(context?.payload ?? data, rest);
+  }
+  if (root === "locals") {
+    return dig(context?.locals ?? {}, rest);
+  }
+  return dig(data, segments);
+};
+const dig = (input, pathSegments) => {
+  if (pathSegments.length === 0) {
+    return input;
+  }
+  let current = input;
+  for (const segment of pathSegments) {
+    if (current == null) {
       return void 0;
     }
     if (Array.isArray(current)) {
@@ -18662,12 +19246,27 @@ const extractValue = (data, path2) => {
         return void 0;
       }
       current = current[index];
-    } else {
-      current = current[segment];
+      continue;
     }
+    if (typeof current === "object") {
+      current = current[segment];
+      continue;
+    }
+    return void 0;
   }
   return current;
 };
+const isVariableScope = (value) => value === "global" || value === "plugin" || value === "rule";
+const shuffle = (input) => {
+  for (let index = input.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [input[index], input[swapIndex]] = [input[swapIndex], input[index]];
+  }
+  return input;
+};
+const delay = (ms) => new Promise((resolve2) => {
+  setTimeout(() => resolve2(), ms);
+});
 const deepEqual = (a, b) => {
   if (a === b) return true;
   if (typeof a !== typeof b) return false;
@@ -18775,6 +19374,11 @@ const registerEventBridge = (window, eventBus2, getPluginStatuses) => {
       window.webContents.send("events:plugin-status", payload);
     }
   });
+  const unsubscribeVariables = eventBus2.onVariableMutation((payload) => {
+    if (!window.isDestroyed()) {
+      window.webContents.send("events:variables-mutated", payload);
+    }
+  });
   const sendInitialLog = () => {
     if (!window.isDestroyed()) {
       window.webContents.send("events:log-bootstrap", eventBus2.getRecentLogEntries(50));
@@ -18796,6 +19400,7 @@ const registerEventBridge = (window, eventBus2, getPluginStatuses) => {
     unsubscribe();
     unsubscribeLog();
     unsubscribeStatus();
+    unsubscribeVariables();
   });
 };
 const registerRuleBridge = (ruleEngine2) => {
@@ -18812,6 +19417,165 @@ const registerRuleBridge = (ruleEngine2) => {
     return ruleEngine2.testRule(rule, data);
   });
 };
+class VariableService {
+  repository;
+  eventBus;
+  logger;
+  constructor(repository, eventBus2, options) {
+    this.repository = repository;
+    this.eventBus = eventBus2;
+    this.logger = options?.logger ?? createLogger("VariableService");
+  }
+  getSnapshot(ruleId, pluginId) {
+    return this.repository.getSnapshot(ruleId, pluginId);
+  }
+  list(scope2, ownerId) {
+    return this.repository.list(scope2, ownerId);
+  }
+  getValue(key) {
+    return this.repository.getValue(key)?.value;
+  }
+  setValue(key, value, source) {
+    const previous = this.repository.getValue(key)?.value;
+    const record = this.repository.setValue(key, value);
+    this.publishMutation(record, previous, source);
+    return record;
+  }
+  incrementValue(key, amount, source) {
+    const previous = this.repository.getValue(key)?.value;
+    let numericPrevious = typeof previous === "number" ? previous : void 0;
+    if (previous === void 0) {
+      numericPrevious = 0;
+    }
+    const record = this.repository.incrementValue(key, amount);
+    this.publishMutation(record, numericPrevious, source);
+    return record;
+  }
+  deleteValue(key, source) {
+    const existing = this.repository.getValue(key);
+    if (!existing) {
+      return false;
+    }
+    const deleted = this.repository.deleteValue(key);
+    if (deleted) {
+      this.publishMutation(
+        { ...existing, value: void 0 },
+        existing.value,
+        source
+      );
+    }
+    return deleted;
+  }
+  createScopedAccessor(ruleId, pluginId) {
+    const buildKey = (scope2, key, ownerId) => {
+      if (!key) {
+        throw new Error("Variable key is required");
+      }
+      return {
+        scope: scope2,
+        key,
+        ownerId: ownerId ?? inferOwner(scope2, ruleId, pluginId)
+      };
+    };
+    const buildApi = (scope2, ownerId) => ({
+      get: (key) => this.getValue(buildKey(scope2, key, ownerId)),
+      set: (key, value) => this.setValue(buildKey(scope2, key, ownerId), value, { type: "rule", id: ruleId }),
+      increment: (key, amount = 1) => this.incrementValue(buildKey(scope2, key, ownerId), amount, { type: "rule", id: ruleId }),
+      reset: (key) => this.deleteValue(buildKey(scope2, key, ownerId), { type: "rule", id: ruleId })
+    });
+    return {
+      global: buildApi("global"),
+      plugin: buildApi("plugin"),
+      rule: buildApi("rule")
+    };
+  }
+  publishMutation(record, previousValue, source) {
+    const mutation = {
+      key: {
+        scope: record.scope,
+        key: record.key,
+        ownerId: record.ownerId
+      },
+      value: record.value,
+      previousValue,
+      mutatedAt: Date.now(),
+      source
+    };
+    this.logger.debug("Variable mutated", {
+      scope: record.scope,
+      key: record.key,
+      ownerId: record.ownerId,
+      source
+    });
+    this.eventBus.emitVariableMutation(mutation);
+  }
+}
+const inferOwner = (scope2, ruleId, pluginId) => {
+  switch (scope2) {
+    case "global":
+      return void 0;
+    case "plugin":
+      return pluginId;
+    case "rule":
+      return ruleId;
+    default:
+      return void 0;
+  }
+};
+const normalizeScope = (scope2) => {
+  if (scope2 === "global" || scope2 === "plugin" || scope2 === "rule") {
+    return scope2;
+  }
+  throw new Error(`Unsupported variable scope '${scope2}'`);
+};
+const registerVariableBridge = (variables) => {
+  const { ipcMain: ipcMain2 } = electron;
+  ipcMain2.handle("variables:list", (_event, payload) => {
+    const scope2 = normalizeScope(payload.scope);
+    return variables.list(scope2, payload.ownerId);
+  });
+  ipcMain2.handle(
+    "variables:get",
+    (_event, payload) => {
+      const scope2 = normalizeScope(payload.scope);
+      return variables.getValue({ scope: scope2, key: payload.key, ownerId: payload.ownerId }) ?? null;
+    }
+  );
+  ipcMain2.handle(
+    "variables:set",
+    (_event, payload) => {
+      const scope2 = normalizeScope(payload.scope);
+      const record = variables.setValue(
+        { scope: scope2, key: payload.key, ownerId: payload.ownerId },
+        payload.value,
+        { type: "user" }
+      );
+      return record;
+    }
+  );
+  ipcMain2.handle(
+    "variables:increment",
+    (_event, payload) => {
+      const scope2 = normalizeScope(payload.scope);
+      const amount = typeof payload.amount === "number" ? payload.amount : 1;
+      const record = variables.incrementValue(
+        { scope: scope2, key: payload.key, ownerId: payload.ownerId },
+        amount,
+        { type: "user" }
+      );
+      return record;
+    }
+  );
+  ipcMain2.handle("variables:reset", (_event, payload) => {
+    const scope2 = normalizeScope(payload.scope);
+    variables.deleteValue({ scope: scope2, key: payload.key, ownerId: payload.ownerId }, { type: "user" });
+    return { status: "ok" };
+  });
+  ipcMain2.handle(
+    "variables:snapshot",
+    (_event, payload) => variables.getSnapshot(payload.ruleId, payload.pluginId)
+  );
+};
 const require2 = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18823,6 +19587,7 @@ let pluginManager = null;
 let stores = null;
 let logger = null;
 let ruleEngine = null;
+let variableService = null;
 let isShuttingDown = false;
 const logError = (message, error) => {
   if (logger) {
@@ -18937,6 +19702,7 @@ async function bootstrap() {
   logger = createLogger("main");
   buildMenu();
   stores = new DataStores();
+  variableService = new VariableService(stores.variables, eventBus);
   const pluginDirectories = {
     builtInDirectory: resolveBuiltInPluginDirectory(),
     externalDirectory: resolveExternalPluginDirectory()
@@ -18944,10 +19710,13 @@ async function bootstrap() {
   ensureDirectory(pluginDirectories.externalDirectory);
   pluginManager = new PluginManager(pluginDirectories, eventBus, stores);
   registerPluginBridge(pluginManager);
+  if (variableService) {
+    registerVariableBridge(variableService);
+  }
   const window = await createMainWindow();
   try {
     await pluginManager.loadPlugins();
-    ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager);
+    ruleEngine = new RuleEngine(eventBus, stores.rules, pluginManager, variableService);
     ruleEngine.start();
     ensureDemoRules(ruleEngine);
     registerRuleBridge(ruleEngine);

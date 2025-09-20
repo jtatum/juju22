@@ -91,18 +91,18 @@ graph TB
     Rules[Rules Engine]
     Event[Event Bus]
     Storage[Data Layer]
-    
+
     UI <--> Main
     Main --> Plugin
     Main --> Rules
     Main --> Event
     Main --> Storage
-    
+
     Plugin --> P1[OBS Plugin]
     Plugin --> P2[Twitch Plugin]
     Plugin --> P3[System Plugin]
     Plugin --> P4[Custom Plugins]
-    
+
     Event --> Rules
     Rules --> Plugin
 ```
@@ -116,7 +116,7 @@ sequenceDiagram
     participant E as Event Bus
     participant R as Rules Engine
     participant A as Action Handler
-    
+
     T->>P: External Event
     P->>E: Emit Trigger
     E->>R: Process Event
@@ -133,16 +133,16 @@ interface Plugin {
   manifest: PluginManifest
   initialize(): Promise<void>
   destroy(): Promise<void>
-  
+
   // Trigger handling
   registerTriggers(): TriggerDefinition[]
   startListening(): void
   stopListening(): void
-  
+
   // Action handling
   registerActions(): ActionDefinition[]
   executeAction(actionId: string, params: any): Promise<void>
-  
+
   // Configuration
   getConfigSchema(): JSONSchema
   validateConfig(config: any): ValidationResult
@@ -362,22 +362,49 @@ aidle/
 ## Phase 5: Advanced Features (Week 9-10)
 
 ### Variables & Context
-- [ ] Global variables system
-- [ ] Trigger context passing (e.g., username from Twitch event)
-- [ ] Variable interpolation in action parameters
-- [ ] Custom user variables and counters
+- [x] Global variables system
+- [x] Trigger context passing (e.g., username from Twitch event)
+- [x] Variable interpolation in action parameters
+- [x] Custom user variables and counters
 
 ### Advanced Actions
-- [ ] Conditional branching (if/else in action chains)
-- [ ] Loops and batch operations
-- [ ] Random selection from action groups
-- [ ] External script execution
+- [x] Conditional branching (if/else in action chains)
+- [x] Loops and batch operations
+- [x] Random selection from action groups
+- [x] External script execution
 
 ### Plugin Development
-- [ ] Plugin development documentation
-- [ ] TypeScript type definitions package
-- [ ] Plugin template/generator
-- [ ] Local plugin development mode
+- [x] Plugin development documentation
+- [x] TypeScript type definitions package
+- [x] Plugin template/generator
+- [x] Local plugin development mode
+
+## Phase 5.5: Data Migration & Upgrade Framework (Week 10-11)
+
+### Objectives
+- Replace repository-level `CREATE TABLE` calls with a versioned migration runner that owns schema creation and evolution.
+- Establish a baseline migration so fresh installs and future upgrades follow the same path.
+
+### Migration Runtime
+- [ ] Implement `MigrationRunner` with ordered modules, transactional execution, and structured logging.
+- [ ] Create `schema_migrations` metadata table to record applied migration IDs and timestamps.
+- [ ] Emit migration lifecycle events over the `EventBus` for renderer visibility.
+- [ ] Fail-safe: abort startup (with clear error) if a migration fails mid-flight.
+
+### Initial Migrations
+- [ ] `0001_initial_schema`: build `rule_definitions` and `variables` tables matching the current runtime schema.
+- [ ] `0002_seed_variable_defaults`: ensure newly introduced variable scopes have predictable defaults.
+- [ ] Wire migrations to execute before plugin loading and rule evaluation.
+
+### Tooling & Tests
+- [ ] Unit tests covering migration ordering, idempotency, and rollback behavior.
+- [ ] Integration test that boots a fresh install via migrations and validates schema availability.
+- [ ] CLI task `npm run migrate:plan` to preview pending migrations and `npm run migrate:apply` for manual execution.
+
+### Developer Workflow
+- [ ] Authoring guide in `docs/migrations.md` detailing conventions and review checklist.
+- [ ] CI step to run migrations against ephemeral fixtures to catch schema drift early.
+- [ ] Lint rule or PR checklist ensuring schema changes ship with migrations.
 
 ### Testing - Phase 5
 - [ ] **Unit Tests**:
@@ -455,7 +482,7 @@ aidle/
 ### Continuous Testing Practices
 - **Pre-commit hooks**: Run unit tests before allowing commits
 - **Static analysis**: `npm run lint` must pass with zero warnings before changes ship (CI blocks merges if ESLint fails)
-- **CI/CD Pipeline**: 
+- **CI/CD Pipeline**:
   - Run all tests on PR creation
   - Nightly E2E test runs
   - Weekly stress tests

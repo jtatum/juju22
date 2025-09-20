@@ -20,6 +20,8 @@ const formatType = (type: EventLogEntry['type']) => {
       return 'Action'
     case 'rule.error':
       return 'Error'
+    case 'variables.mutated':
+      return 'Variable'
     default:
       return type
   }

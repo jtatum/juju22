@@ -1,0 +1,10 @@
+{
+  "id": "com.example.plugin",
+  "name": "Example Plugin",
+  "version": "0.0.1",
+  "author": "Your Name",
+  "main": "index.js",
+  "description": "Starter plugin template",
+  "triggers": [],
+  "actions": []
+}

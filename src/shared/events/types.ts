@@ -4,6 +4,7 @@ import type {
   RuleEvaluationContext,
   RuleEvaluationResult,
 } from '../rules/types'
+import type { VariableMutation } from '../variables/types'
 
 export interface RuleEvaluationEvent {
   ruleId: string
@@ -24,6 +25,7 @@ export type AidleEvent =
   | { type: 'rule.evaluation'; payload: RuleEvaluationEvent }
   | { type: 'rule.action'; payload: RuleActionDispatchEvent }
   | { type: 'rule.error'; payload: RuleErrorEvent }
+  | { type: 'variables.mutated'; payload: VariableMutation }
 
 export interface EventLogEntry {
   type: AidleEvent['type']
