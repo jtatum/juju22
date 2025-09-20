@@ -93,6 +93,17 @@ export class PluginManager {
 
     this.stores.setPluginConfigSnapshot(pluginId, update)
     this.logger.info(`Updated configuration for plugin ${pluginId}`)
+
+    // Call plugin's onConfigUpdate if it exists
+    if (plugin.instance.onConfigUpdate) {
+      const result = plugin.instance.onConfigUpdate(update)
+      if (result && typeof result.catch === 'function') {
+        result.catch((error: unknown) => {
+          this.logger.error(`Plugin ${pluginId} failed to handle config update`, error)
+        })
+      }
+    }
+
     return this.getConfig(pluginId)
   }
 

@@ -23,6 +23,35 @@ This document describes how to build and test local plugins against the Juju22 r
 
 4. Restart the running Juju22 instance or, while in dev mode, toggle the plugin via the renderer to reload it. Phase 5 still requires a manual reload; hot-module support is tracked for Phase 6.
 
+## Configuration Updates
+
+Plugins can react to configuration changes made through the UI by implementing the optional `onConfigUpdate` hook:
+
+```javascript
+module.exports = {
+  // ... other plugin methods ...
+
+  async onConfigUpdate(config) {
+    // Called when configuration is updated via the UI
+    // config contains the new configuration object
+
+    // Example: restart connection with new settings
+    await this.reconnect(config)
+
+    // Example: apply new settings without restart
+    this.applySettings(config)
+  }
+}
+```
+
+This hook is called automatically when users save configuration changes through the plugin's configuration page. Use it to:
+- Reconnect with new credentials or connection settings
+- Apply new configuration without requiring a restart
+- Validate and migrate configuration formats
+- Update internal state based on configuration changes
+
+Note: The configuration is automatically persisted before this hook is called, so you don't need to save it manually.
+
 ## Error Handling
 
 Plugins can report errors to users through the `emitError` function in the plugin context:

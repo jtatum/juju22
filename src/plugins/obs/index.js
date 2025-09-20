@@ -245,23 +245,53 @@ let liveRuntime
 let activeRuntime
 
 const loadConfig = () => {
-  const stored = pluginContext.storage.config.get('connection')
-  if (!stored) {
-    return { ...DEFAULT_CONFIG }
-  }
+  // Load config from individual keys
+  const mode = pluginContext.storage.config.get('mode')
+  const host = pluginContext.storage.config.get('host')
+  const port = pluginContext.storage.config.get('port')
+  const useSsl = pluginContext.storage.config.get('useSsl')
+  const autoReconnect = pluginContext.storage.config.get('autoReconnect')
+
+  const stored = {}
+  if (mode !== undefined) stored.mode = mode
+  if (host !== undefined) stored.host = host
+  if (port !== undefined) stored.port = port
+  if (useSsl !== undefined) stored.useSsl = useSsl
+  if (autoReconnect !== undefined) stored.autoReconnect = autoReconnect
+
+  // Return defaults merged with stored values
   return { ...DEFAULT_CONFIG, ...stored }
 }
 
 const saveConfig = (config) => {
-  pluginContext.storage.config.set('connection', config)
+  // Save individual keys directly (not nested under 'connection')
+  // Skip password and connection keys
+  Object.keys(config).forEach(key => {
+    if (key !== 'password' && key !== 'connection') {
+      pluginContext.storage.config.set(key, config[key])
+    }
+  })
 }
 
-const getPassword = () => pluginContext.storage.secrets.get('connection.password')
+const getPassword = () => {
+  // Try both storage locations for password
+  const connPassword = pluginContext.storage.secrets.get('connection.password')
+  const directPassword = pluginContext.storage.secrets.get('password')
+
+  // Also check if password is stored in regular config (from UI)
+  const configPassword = pluginContext.storage.config.get('password')
+
+  const password = connPassword || directPassword || configPassword
+  return password
+}
 const savePassword = (password) => {
   if (typeof password === 'string' && password.length > 0) {
+    // Save in both locations for compatibility
     pluginContext.storage.secrets.set('connection.password', password)
+    pluginContext.storage.secrets.set('password', password)
   } else {
     pluginContext.storage.secrets.delete('connection.password')
+    pluginContext.storage.secrets.delete('password')
   }
 }
 
@@ -317,6 +347,23 @@ module.exports = {
       await activeRuntime.stop()
     }
     pluginContext.emitStatus({ state: 'disconnected', message: 'OBS plugin stopped' })
+  },
+
+  async onConfigUpdate(config) {
+    // Handle config updates from the UI - restart the runtime with new config
+    // Extract password from config and save it securely
+    const { password, ...configWithoutPassword } = config
+
+    // Save the config without password
+    saveConfig(configWithoutPassword)
+
+    // Save password separately in secure storage
+    if (password !== undefined) {
+      savePassword(password)
+    }
+
+    // Restart the runtime with the new configuration
+    await startRuntime()
   },
 
   async executeAction(actionId, params = {}) {

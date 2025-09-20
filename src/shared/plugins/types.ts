@@ -109,6 +109,7 @@ export interface PluginModule {
   executeAction(actionId: string, params: unknown): Promise<void> | void
   getConfigSchema?(): JSONSchemaType<unknown> | Record<string, unknown> | undefined
   validateConfig?(config: unknown): ValidationResult
+  onConfigUpdate?(config: unknown): Promise<void> | void
 }
 
 export interface LoadedPlugin {
