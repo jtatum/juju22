@@ -7,6 +7,9 @@ import { join } from 'node:path'
 import type { RuleDefinition } from '../../shared/rules/types'
 import type { PluginConfigSnapshot } from '../../shared/plugins/types'
 import type { VariableKey, VariableRecord, VariableSnapshot, VariableScope } from '../../shared/variables/types'
+import { MigrationRunner } from './migrations/migration-runner'
+import { allMigrations } from './migrations/migrations'
+import type { EventBus } from './event-bus'
 
 const DATABASE_FILENAME = 'aidle.db'
 
@@ -99,28 +102,6 @@ export class RuleRepository {
 
   constructor(db: DatabaseInstance) {
     this.db = db
-    this.initialize()
-  }
-
-  private initialize() {
-    this.db
-      .prepare(`
-        CREATE TABLE IF NOT EXISTS rule_definitions (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL,
-          description TEXT,
-          trigger_plugin_id TEXT NOT NULL,
-          trigger_id TEXT NOT NULL,
-          conditions TEXT,
-          actions TEXT NOT NULL,
-          enabled INTEGER NOT NULL DEFAULT 1,
-          priority INTEGER NOT NULL DEFAULT 0,
-          tags TEXT,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL
-        );
-      `)
-      .run()
   }
 
   save(rule: RuleDefinition) {
@@ -238,23 +219,6 @@ export class VariableRepository {
 
   constructor(db: DatabaseInstance) {
     this.db = db
-    this.initialize()
-  }
-
-  private initialize() {
-    this.db
-      .prepare(`
-        CREATE TABLE IF NOT EXISTS variables (
-          scope TEXT NOT NULL,
-          owner_id TEXT,
-          key TEXT NOT NULL,
-          value TEXT NOT NULL,
-          created_at TEXT NOT NULL,
-          updated_at TEXT NOT NULL,
-          PRIMARY KEY (scope, owner_id, key)
-        );
-      `)
-      .run()
   }
 
   getSnapshot(ruleId: string, pluginId: string): VariableSnapshot {
@@ -408,12 +372,17 @@ export class DataStores {
   readonly db: DatabaseInstance
   readonly rules: RuleRepository
   readonly variables: VariableRepository
+  readonly migrationRunner: MigrationRunner
   private readonly pluginConfigs = new Map<string, PluginConfigStore>()
   private readonly pluginSecrets = new Map<string, PluginSecretStore>()
   private readonly secretsKey: string
 
-  constructor() {
+  constructor(eventBus: EventBus) {
     this.db = createDatabaseConnection()
+
+    this.migrationRunner = new MigrationRunner(this.db, eventBus)
+    this.migrationRunner.registerMigrations(allMigrations)
+
     this.rules = new RuleRepository(this.db)
     this.variables = new VariableRepository(this.db)
     const existingKey = this.settings.get('pluginSecretsKey')
@@ -424,6 +393,10 @@ export class DataStores {
     } else {
       this.secretsKey = existingKey
     }
+  }
+
+  async runMigrations(): Promise<void> {
+    await this.migrationRunner.runPendingMigrations()
   }
 
   getPluginConfig(pluginId: string) {

@@ -31,6 +31,14 @@ export default [
     },
   },
   {
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+  {
     plugins: {
       'react-refresh': reactRefresh,
     },

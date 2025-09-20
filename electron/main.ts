@@ -19,6 +19,7 @@ import { createLogger } from '../src/main/core/logger'
 import type { Logger } from '../src/main/core/logger'
 import { VariableService } from '../src/main/core/variable-service'
 import { registerVariableBridge } from '../src/main/ipc/variable-bridge'
+import { registerMigrationBridge } from '../src/main/ipc/migration-bridge'
 
 const require = createRequire(import.meta.url)
 const __filename = fileURLToPath(import.meta.url)
@@ -161,7 +162,17 @@ async function bootstrap() {
   logger = createLogger('main')
   buildMenu()
 
-  stores = new DataStores()
+  stores = new DataStores(eventBus)
+
+  try {
+    await stores.runMigrations()
+    registerMigrationBridge(stores.migrationRunner)
+  } catch (error) {
+    logError('Failed to run database migrations', error)
+    app.exit(1)
+    return
+  }
+
   variableService = new VariableService(stores.variables, eventBus)
   const pluginDirectories = {
     builtInDirectory: resolveBuiltInPluginDirectory(),

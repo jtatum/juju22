@@ -140,7 +140,7 @@ class Statement {
       return this
     }
 
-    if (normalized.startsWith('insert into variables')) {
+    if (normalized.includes('insert') && normalized.includes('into variables')) {
       const data = requireObject(params, this.sql)
       const row: VariableRow = {
         scope: requireString(data.scope, 'scope'),
@@ -151,16 +151,33 @@ class Statement {
         updated_at: requireString(data.updatedAt, 'updatedAt'),
       }
       this.db.variables.upsert(row)
-      return this
+      return { changes: 1 }
     }
 
-    if (normalized.startsWith('delete from variables')) {
+    if (normalized.startsWith('delete from variables') || normalized.includes('delete from variables')) {
+      // Handle DELETE with WHERE ... AND key IN (...) - used by migration rollback
+      if (normalized.includes('key in')) {
+        // This is a bulk delete from migration rollback, just clear all global variables
+        // that match the pattern
+        const globalVars = this.db.variables.list('global', null)
+        for (const v of globalVars) {
+          if (v.key.startsWith('system.') || v.key.startsWith('automation.')) {
+            this.db.variables.delete('global', null, v.key)
+          }
+        }
+        return { changes: globalVars.filter(v => v.key.startsWith('system.') || v.key.startsWith('automation.')).length }
+      }
+
+      // Handle normal DELETE with params
+      if (!params) {
+        return { changes: 0 }
+      }
       const data = requireObject(params, this.sql)
       const scope = requireString(data.scope, 'scope')
       const ownerId = data.ownerId == null ? null : String(data.ownerId)
       const key = requireString(data.key, 'key')
       this.db.variables.delete(scope, ownerId, key)
-      return this
+      return { changes: 1 }
     }
 
     throw new Error(`Unsupported run operation for SQL: ${this.sql}`)
@@ -212,6 +229,14 @@ class Statement {
       return this.db.variables.list(scope, ownerId)
     }
 
+    // Handle SELECT * FROM variables WHERE scope = ? AND owner_id IS NULL
+    if (normalized.includes('select * from variables') && normalized.includes('scope =') && normalized.includes('owner_id is null')) {
+      const scope = Array.isArray(params) ? params[0] : params
+      if (typeof scope === 'string') {
+        return this.db.variables.list(scope, null)
+      }
+    }
+
     throw new Error(`Unsupported all operation for SQL: ${this.sql}`)
   }
 }
@@ -219,14 +244,184 @@ class Statement {
 class MockDatabase {
   readonly store = new InMemoryRuleStore()
   readonly variables = new VariableStore()
+  private migrations = new Map<string, { id: string; name: string; applied_at: string }>()
+  private tables = new Set<string>()
+  private indexes = new Set<string>()
 
   prepare(sql: string) {
+    const normalized = sql.trim().toLowerCase()
+
+    // Handle INSERT OR IGNORE INTO variables for migrations
+    if (normalized.includes('insert or ignore into variables')) {
+      return {
+        run: (...params: unknown[]) => {
+          // Handle both array and spread parameters
+          const [key, value, createdAt, updatedAt] = params.length === 1 && Array.isArray(params[0])
+            ? params[0]
+            : params
+          if (key && value && createdAt && updatedAt) {
+            const row: VariableRow = {
+              scope: 'global',
+              owner_id: null,
+              key: String(key),
+              value: String(value),
+              created_at: String(createdAt),
+              updated_at: String(updatedAt),
+            }
+            this.variables.upsert(row)
+          }
+          return { changes: 1 }
+        }
+      }
+    }
+
+    // Handle PRAGMA table_info
+    if (normalized.includes('pragma table_info')) {
+      const tableName = normalized.match(/table_info\((\w+)\)/)?.[1]
+      if (tableName === 'rule_definitions') {
+        return {
+          all: () => [
+            { name: 'id', type: 'TEXT', notnull: 0 },
+            { name: 'name', type: 'TEXT', notnull: 1 },
+            { name: 'description', type: 'TEXT', notnull: 0 },
+            { name: 'trigger_plugin_id', type: 'TEXT', notnull: 1 },
+            { name: 'trigger_id', type: 'TEXT', notnull: 1 },
+            { name: 'conditions', type: 'TEXT', notnull: 0 },
+            { name: 'actions', type: 'TEXT', notnull: 1 },
+            { name: 'enabled', type: 'INTEGER', notnull: 1 },
+            { name: 'priority', type: 'INTEGER', notnull: 1 },
+            { name: 'tags', type: 'TEXT', notnull: 0 },
+            { name: 'created_at', type: 'TEXT', notnull: 1 },
+            { name: 'updated_at', type: 'TEXT', notnull: 1 },
+          ]
+        }
+      }
+      if (tableName === 'variables') {
+        return {
+          all: () => [
+            { name: 'scope', type: 'TEXT', notnull: 1 },
+            { name: 'owner_id', type: 'TEXT', notnull: 0 },
+            { name: 'key', type: 'TEXT', notnull: 1 },
+            { name: 'value', type: 'TEXT', notnull: 1 },
+            { name: 'created_at', type: 'TEXT', notnull: 1 },
+            { name: 'updated_at', type: 'TEXT', notnull: 1 },
+          ]
+        }
+      }
+      return { all: () => [] }
+    }
+
+    // Handle SELECT FROM sqlite_master
+    if (normalized.includes('sqlite_master')) {
+      return {
+        all: () => {
+          const results: Array<{ name: string; type?: string }> = []
+          if (normalized.includes("type='table'")) {
+            this.tables.forEach(name => {
+              if (!normalized.includes('!=') || name !== 'schema_migrations') {
+                results.push({ name })
+              }
+            })
+          }
+          if (normalized.includes("type='index'")) {
+            this.indexes.forEach(name => results.push({ name }))
+          }
+          return results
+        }
+      }
+    }
+
+    // Handle SELECT * FROM variables for global scope
+    if (normalized.includes('select * from variables') && normalized.includes("scope = 'global'")) {
+      return {
+        all: () => {
+          return this.variables.list('global', null)
+        }
+      }
+    }
+
+    if (normalized.includes('schema_migrations')) {
+      return {
+        run: (...params: unknown[]) => {
+          if (normalized.includes('insert into schema_migrations')) {
+            // Handle both array and spread parameters
+            const [id, name, appliedAt] = params.length === 1 && Array.isArray(params[0])
+              ? params[0]
+              : params
+            if (typeof id === 'string' && typeof name === 'string' && typeof appliedAt === 'string') {
+              this.migrations.set(id, { id, name, applied_at: appliedAt })
+            }
+            return { changes: 1 }
+          }
+          if (normalized.includes('delete from schema_migrations')) {
+            const id = params.length === 1 && Array.isArray(params[0]) ? params[0][0] : params[0]
+            if (typeof id === 'string') {
+              this.migrations.delete(id)
+            }
+            return { changes: 1 }
+          }
+          return { changes: 0 }
+        },
+        get: (param?: unknown) => {
+          const id = Array.isArray(param) ? param[0] : param
+          if (typeof id === 'string') {
+            return this.migrations.get(id) ?? undefined
+          }
+          return undefined
+        },
+        all: () => {
+          return Array.from(this.migrations.values()).sort((a, b) => a.id.localeCompare(b.id))
+        },
+      }
+    }
+
     return new Statement(this, sql)
   }
 
   transaction<T extends (...args: unknown[]) => unknown>(fn: T): T {
     return ((...args: Parameters<T>) => fn(...args)) as T
   }
-}
+
+  exec(sql: string) {
+    const normalized = sql.trim().toLowerCase()
+
+    // Track created tables
+    if (normalized.includes('create table')) {
+      const tableMatch = normalized.match(/create table (?:if not exists )?(\w+)/)
+      if (tableMatch) {
+        this.tables.add(tableMatch[1])
+      }
+    }
+
+    // Track created indexes
+    if (normalized.includes('create index')) {
+      const indexMatch = normalized.match(/create index (?:if not exists )?(\w+)/)
+      if (indexMatch) {
+        this.indexes.add(indexMatch[1])
+      }
+    }
+
+    // Handle DROP TABLE
+    if (normalized.includes('drop table')) {
+      const tableMatch = normalized.match(/drop table (?:if exists )?(\w+)/)
+      if (tableMatch) {
+        this.tables.delete(tableMatch[1])
+      }
+    }
+
+    // Handle DROP INDEX
+    if (normalized.includes('drop index')) {
+      const indexMatch = normalized.match(/drop index (?:if exists )?(\w+)/)
+      if (indexMatch) {
+        this.indexes.delete(indexMatch[1])
+      }
+    }
+
+    return
+  }
+
+  close() {
+    return
+  }}
 
 export default MockDatabase
