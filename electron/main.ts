@@ -4,9 +4,6 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 
-// Enable debugging
-process.env.ELECTRON_ENABLE_LOGGING = '1'
-process.env.ELECTRON_LOG_FILE = join(process.cwd(), 'electron-debug.log')
 import { EventBus } from '../src/main/core/event-bus'
 import { DataStores } from '../src/main/core/storage'
 import {
@@ -88,24 +85,6 @@ async function createMainWindow() {
       sandbox: false,
       nodeIntegration: false,
     },
-  })
-
-  // Add debugging event listeners
-  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    console.log(`[RENDERER CONSOLE ${level}] ${message} (${sourceId}:${line})`)
-  })
-
-  win.webContents.on('preload-error', (_event, preloadPath, error) => {
-    console.error('[PRELOAD ERROR]', preloadPath, error)
-  })
-
-  // @ts-expect-error - Electron type definitions are incomplete for crashed event
-  win.webContents.on('crashed', (_event: unknown, killed: boolean) => {
-    console.error('[RENDERER CRASHED]', killed ? 'killed' : 'crashed')
-  })
-
-  win.webContents.on('render-process-gone', (_event, details) => {
-    console.error('[RENDER PROCESS GONE]', details)
   })
 
   win.once('ready-to-show', () => {

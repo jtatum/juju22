@@ -1,25 +1,6 @@
 "use strict";
-console.log("[PRELOAD] Starting preload script...");
-let electron;
-try {
-  console.log("[PRELOAD] Attempting to require electron...");
-  electron = require("electron");
-  console.log("[PRELOAD] Electron required successfully:", typeof electron, Object.keys(electron || {}));
-} catch (err) {
-  console.error("[PRELOAD] Failed to require electron:", err);
-  throw err;
-}
-let contextBridge, ipcRenderer;
-try {
-  console.log("[PRELOAD] Getting contextBridge and ipcRenderer...");
-  contextBridge = electron.contextBridge;
-  ipcRenderer = electron.ipcRenderer;
-  console.log("[PRELOAD] Got contextBridge:", typeof contextBridge);
-  console.log("[PRELOAD] Got ipcRenderer:", typeof ipcRenderer);
-} catch (err) {
-  console.error("[PRELOAD] Failed to get contextBridge/ipcRenderer:", err);
-  throw err;
-}
+const electron = require("electron");
+const { contextBridge, ipcRenderer } = electron;
 const pluginChannels = {
   list: "plugins:list",
   get: "plugins:get",
@@ -166,12 +147,4 @@ const juju22Bridge = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)
 };
-try {
-  console.log("[PRELOAD] About to expose juju22 bridge to window...");
-  contextBridge.exposeInMainWorld("juju22", juju22Bridge);
-  console.log("[PRELOAD] Successfully exposed juju22 bridge!");
-} catch (err) {
-  console.error("[PRELOAD] Failed to expose juju22 bridge:", err);
-  throw err;
-}
-console.log("[PRELOAD] Preload script completed successfully!");
+contextBridge.exposeInMainWorld("juju22", juju22Bridge);

@@ -21696,8 +21696,6 @@ function registerSettingsBridge(stores2) {
     return { success: true };
   });
 }
-process.env.ELECTRON_ENABLE_LOGGING = "1";
-process.env.ELECTRON_LOG_FILE = join(process.cwd(), "electron-debug.log");
 const require2 = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -21746,18 +21744,6 @@ async function createMainWindow() {
       sandbox: false,
       nodeIntegration: false
     }
-  });
-  win.webContents.on("console-message", (_event, level, message, line, sourceId) => {
-    console.log(`[RENDERER CONSOLE ${level}] ${message} (${sourceId}:${line})`);
-  });
-  win.webContents.on("preload-error", (_event, preloadPath, error) => {
-    console.error("[PRELOAD ERROR]", preloadPath, error);
-  });
-  win.webContents.on("crashed", (_event, killed) => {
-    console.error("[RENDERER CRASHED]", killed ? "killed" : "crashed");
-  });
-  win.webContents.on("render-process-gone", (_event, details) => {
-    console.error("[RENDER PROCESS GONE]", details);
   });
   win.once("ready-to-show", () => {
     win.show();

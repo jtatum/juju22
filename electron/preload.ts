@@ -1,27 +1,6 @@
-console.log('[PRELOAD] Starting preload script...')
-
-let electron
-try {
-  console.log('[PRELOAD] Attempting to require electron...')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  electron = require('electron')
-  console.log('[PRELOAD] Electron required successfully:', typeof electron, Object.keys(electron || {}))
-} catch (err) {
-  console.error('[PRELOAD] Failed to require electron:', err)
-  throw err
-}
-
-let contextBridge, ipcRenderer
-try {
-  console.log('[PRELOAD] Getting contextBridge and ipcRenderer...')
-  contextBridge = electron.contextBridge
-  ipcRenderer = electron.ipcRenderer
-  console.log('[PRELOAD] Got contextBridge:', typeof contextBridge)
-  console.log('[PRELOAD] Got ipcRenderer:', typeof ipcRenderer)
-} catch (err) {
-  console.error('[PRELOAD] Failed to get contextBridge/ipcRenderer:', err)
-  throw err
-}
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const electron = require('electron')
+const { contextBridge, ipcRenderer } = electron
 import type { IpcRendererEvent } from 'electron'
 import type { JSONSchemaType } from 'ajv'
 import type {
@@ -228,16 +207,7 @@ const juju22Bridge = {
   invoke: (channel: string, ...args: any[]) => ipcRenderer.invoke(channel, ...args),
 }
 
-try {
-  console.log('[PRELOAD] About to expose juju22 bridge to window...')
-  contextBridge.exposeInMainWorld('juju22', juju22Bridge)
-  console.log('[PRELOAD] Successfully exposed juju22 bridge!')
-} catch (err) {
-  console.error('[PRELOAD] Failed to expose juju22 bridge:', err)
-  throw err
-}
-
-console.log('[PRELOAD] Preload script completed successfully!')
+contextBridge.exposeInMainWorld('juju22', juju22Bridge)
 
 export type Juju22Bridge = typeof juju22Bridge
 
