@@ -113,6 +113,9 @@ class TwitchLiveRuntime {
 
     await this.ensureClient()
     await this.ensureBroadcasterId()
+    // Only follows from now on are new. Helix returns the most recent
+    // followers, so any older baseline replays them as channel.follow.
+    this.lastFollowerTimestamp = Date.now()
     this.startFollowerPoll()
     this.context.emitStatus({ state: 'connected', message: 'Connected to Twitch' })
   }
@@ -200,7 +203,6 @@ class TwitchLiveRuntime {
     }
 
     this.broadcasterId = user.id
-    this.lastFollowerTimestamp = Date.parse(user.created_at) || null
     return this.broadcasterId
   }
 
@@ -232,7 +234,7 @@ class TwitchLiveRuntime {
     for (const follower of followers) {
       const followedAt = Date.parse(follower.followed_at)
       if (!Number.isFinite(followedAt)) continue
-      if (!this.lastFollowerTimestamp || followedAt > this.lastFollowerTimestamp) {
+      if (this.lastFollowerTimestamp !== null && followedAt > this.lastFollowerTimestamp) {
         newFollowers.push(follower)
       }
     }
@@ -413,6 +415,9 @@ class TwitchLiveRuntime {
 
   async stop() {
     this.stopFollowerPoll()
+    // The channel may change before the next start; resolve it afresh.
+    this.broadcasterId = null
+    this.lastFollowerTimestamp = null
     if (this.client) {
       try {
         await this.client.disconnect()
