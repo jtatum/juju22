@@ -1,5 +1,4 @@
 const manifest = require('./manifest.json')
-const { setTimeout: sleep } = require('node:timers/promises')
 
 let OBSWebSocket
 try {
@@ -95,6 +94,10 @@ class ObsLiveRuntime {
     this.password = null
     this.reconnectAttempt = 0
     this.shouldReconnect = true
+    // At most one retry is ever pending, and it is a cancellable timer rather
+    // than an awaited sleep, so stop() and restarts can't leave stale loops.
+    this.reconnectTimer = null
+    this.connecting = false
   }
 
   async start(config, password) {
@@ -116,6 +119,7 @@ class ObsLiveRuntime {
 
   async stop() {
     this.shouldReconnect = false
+    this.clearReconnect()
     if (!this.client) return
     try {
       await this.client.disconnect?.()
@@ -177,8 +181,10 @@ class ObsLiveRuntime {
     this.client.on('ConnectionClosed', async () => {
       this.context.logger.warn('OBS connection closed')
       this.context.emitStatus({ state: 'disconnected', message: 'Connection closed' })
-      if (this.shouldReconnect) {
-        await this.reconnect()
+      // obs-websocket-js also emits ConnectionClosed when a connect() attempt
+      // fails or replaces an open socket; connect() owns retries in that case.
+      if (this.shouldReconnect && !this.connecting) {
+        this.scheduleReconnect()
       }
     })
 
@@ -189,8 +195,8 @@ class ObsLiveRuntime {
       // Report error to show toast notification
       this.context.emitError(error, 'OBS WebSocket connection error')
 
-      if (this.shouldReconnect) {
-        await this.reconnect()
+      if (this.shouldReconnect && !this.connecting) {
+        this.scheduleReconnect()
       }
     })
   }
@@ -201,9 +207,11 @@ class ObsLiveRuntime {
 
     this.context.emitStatus({ state: this.reconnectAttempt > 0 ? 'reconnecting' : 'connecting', message: `Connecting to ${address}` })
 
+    this.connecting = true
     try {
       await this.client.connect(address, this.password ?? undefined)
       this.reconnectAttempt = 0
+      this.clearReconnect()
       this.context.emitStatus({ state: 'connected', message: 'Connected to OBS' })
     } catch (error) {
       this.context.logger.error('Failed to connect to OBS', { error })
@@ -213,28 +221,44 @@ class ObsLiveRuntime {
       this.context.emitError(error, 'Failed to connect to OBS WebSocket')
 
       if (this.shouldReconnect) {
-        await this.reconnect()
+        // Retry in the background; start() must not block until OBS is up.
+        this.scheduleReconnect()
       } else {
         throw error
       }
+    } finally {
+      this.connecting = false
+    }
+  }
+
+  scheduleReconnect() {
+    if (!this.shouldReconnect || !this.client || this.reconnectTimer) return
+    this.reconnectAttempt += 1
+    const delay = Math.min(30000, 1000 * 2 ** Math.min(this.reconnectAttempt, 5))
+    this.context.emitStatus({ state: 'reconnecting', message: `Retrying OBS connection in ${Math.round(delay / 1000)}s` })
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
+      // connect() schedules the next retry itself on failure
+      this.connect().catch(() => {})
+    }, delay)
+  }
+
+  clearReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
     }
   }
 
   async reconnect(force = false) {
-    if (!this.shouldReconnect && !force) return
-    this.reconnectAttempt += 1
-    const delay = Math.min(30000, 1000 * 2 ** Math.min(this.reconnectAttempt, 5))
-    this.context.emitStatus({ state: 'reconnecting', message: `Retrying OBS connection in ${Math.round(delay / 1000)}s` })
-    await sleep(delay)
+    if (!force) {
+      this.scheduleReconnect()
+      return
+    }
+    // A manual refresh reconnects now instead of waiting out the backoff.
+    this.clearReconnect()
     if (this.client) {
-      try {
-        await this.connect()
-      } catch (error) {
-        if (force) {
-          throw error
-        }
-        // connect already handles scheduling next retry
-      }
+      await this.connect()
     }
   }
 }
