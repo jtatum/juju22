@@ -109,6 +109,13 @@ export class PluginSandbox {
       setInterval,
       clearInterval,
       Buffer,
+      // A vm context only carries ECMAScript built-ins; these web-platform
+      // globals come from the host and network-bound plugins (Twitch Helix,
+      // OAuth refresh) need them.
+      URL,
+      URLSearchParams,
+      fetch,
+      AbortController,
       process: createProcessProxy(pluginId),
     })
 
